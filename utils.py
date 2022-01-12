@@ -21,7 +21,3 @@ def unwrap_any(seq: Iterable[F]) -> F:
     for elem in seq:
         return elem
     raise AssertionError('Empty collection')
-
-
-def empty_generator() -> Generator[F, None, None]:
-    yield from ()

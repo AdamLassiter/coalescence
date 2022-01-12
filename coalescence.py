@@ -8,7 +8,7 @@ from typing import Optional, Generator
 
 from expression import Expr, And, Or, Atom
 from parser import parse
-from utils import empty_generator, flat_map, unwrap, unwrap_any
+from utils import flat_map, unwrap, unwrap_any
 
 
 @dataclass(frozen=True)
