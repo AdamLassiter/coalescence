@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Generator, FrozenSet
+from typing import Generator
 
-from utils import flat_map, peek_any
+from utils import flat_map, unwrap
 
 
 @dataclass(frozen = True)
 class Expr:
-    exprs: FrozenSet[Expr]
+    exprs: frozenset[Expr]
     parity: bool = True
 
     @staticmethod
@@ -67,7 +67,7 @@ class And(Expr):
         if len(norm) > 1:
             return type(self)(norm)
         else:
-            return peek_any(norm)
+            return unwrap(norm)
 
 
 class Or(And):
@@ -96,7 +96,7 @@ class NotAtom(Atom):
 
 class Not(Expr):
     def __invert__(self) -> Expr:
-        return peek_any(self.exprs)
+        return unwrap(self.exprs)
 
     def normalize(self) -> Expr:
         return ~(~self).normalize()

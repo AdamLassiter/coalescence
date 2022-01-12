@@ -3,32 +3,33 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Set, FrozenSet, Optional, Tuple, Iterable, cast
+from itertools import product
+from typing import Optional, Generator
 
-from expression import Expr, And, Or, Atom, NotAtom
+from expression import Expr, And, Or, Atom
 from parser import parse
-from utils import flat_map, peek_any, loop_into_none
+from utils import empty_generator, flat_map, unwrap, unwrap_any
 
 
-@dataclass(frozen = True)
+@dataclass(frozen=True)
 class ProofTree:
-    sequent: FrozenSet[Expr]
-    subproofs: FrozenSet[ProofTree]
+    sequent: frozenset[Expr]
+    subproofs: frozenset[ProofTree]
 
     def __str__(self) -> str:
         return '\n'.join(self.pretty() + ['q.e.d'])
 
     def pretty(self) -> list[str]:
-        return ['|\t' * i + line \
+        return ['|\t' * i + line
                 for i, subproof in enumerate(self.subproofs)
                 for line in subproof.pretty()] + \
             [len(self.subproofs) * '+-------',
              '|- ' + ', '.join(map(str, self.sequent))]
 
 
-def spawn(expr: Expr) -> FrozenSet[FrozenSet[Expr]]:
+def spawn(expr: Expr) -> frozenset[frozenset[Expr]]:
     atoms = expr.atoms()
-    spawns: Set[FrozenSet[Expr]] = set()
+    spawns: set[frozenset[Expr]] = set()
     for atom in atoms:
         not_atom = (~atom).normalize()
         if not_atom in atoms:
@@ -36,7 +37,7 @@ def spawn(expr: Expr) -> FrozenSet[FrozenSet[Expr]]:
     return frozenset(spawns)
 
 
-def fire(expr: Expr, tokens: FrozenSet[FrozenSet[Expr]]) -> FrozenSet[FrozenSet[Expr]]:
+def fire(expr: Expr, tokens: frozenset[frozenset[Expr]]) -> frozenset[frozenset[Expr]]:
     next_tokens = set(tokens)
     for token in tokens:
         for sub_expr in token:
@@ -44,77 +45,80 @@ def fire(expr: Expr, tokens: FrozenSet[FrozenSet[Expr]]) -> FrozenSet[FrozenSet[
             for lineage in filter(lambda x: x[0] == sub_expr, expr.lineaged_subexprs()):
                 if len(lineage) > 1:
                     parent = lineage[1]
-                    # print('Lineage:', lineage)
-                    pred_and = all(map(lambda x: {x} | partial_token in tokens, parent.exprs))
-                    pred_or = any(map(lambda x: {x} | partial_token in tokens, parent.exprs))
+                    pred_and = all(
+                        map(lambda x: {x} | partial_token in tokens, parent.exprs))
+                    pred_or = any(
+                        map(lambda x: {x} | partial_token in tokens, parent.exprs))
                     if (type(parent) == And and pred_and) or \
                             (type(parent) == Or and pred_or):
                         next_tokens |= {frozenset({parent} | partial_token)}
     return frozenset(next_tokens)
 
 
-def project(expr: Expr, tokens: FrozenSet[FrozenSet[Expr]]) -> FrozenSet[FrozenSet[Expr]]:
-    projection: Set[FrozenSet[Expr]] = set()
+def project(expr: Expr, tokens: frozenset[frozenset[Expr]]) -> frozenset[frozenset[Expr]]:
+    projection: set[frozenset[Expr]] = set()
     for token in tokens:
         for atom in expr.subexprs():
-            # print('Project:', list(token), atom)
             projection |= {frozenset(token | {atom})}
     return frozenset(projection)
 
 
-def coalesce(expr: Expr) -> Optional[FrozenSet[FrozenSet[Expr]]]:
+def coalesce(expr: Expr) -> Optional[frozenset[frozenset[Expr]]]:
     tokens = spawn(expr)
-    # print('Spawn:', *map(list, tokens), sep='\n\t')
     if not tokens:
-        # print('Not Spawnable')
         return None
     old_tokens = None
-    max_dim = len(set(map(lambda x: peek_any(x.exprs), expr.atoms())))
+    max_dim = len(set(map(lambda x: unwrap(x.exprs), expr.atoms())))
     while {expr} not in tokens:
         cur_dim = max(map(len, tokens))
         if old_tokens == tokens:
             if cur_dim <= max_dim:
                 tokens = project(expr, tokens)
-                # print('Project:', *map(list, tokens), sep='\n\t')
             else:
-                # print('Not Proveable')
                 return None
         old_tokens = tokens
         tokens = fire(expr, old_tokens)
-        # print('Fire:', *map(list, tokens), sep='\n\t')
-    # print('Proveable:', *map(list, tokens), sep='\n\t')
     return tokens
 
 
-@loop_into_none
-def backtrack(place: FrozenSet[Expr], tokens: FrozenSet[FrozenSet[Expr]]) -> Optional[ProofTree]:
+def backtrack(place: frozenset[Expr], tokens: frozenset[frozenset[Expr]], lineage: frozenset[frozenset[Expr]] = frozenset()) -> Generator[ProofTree, None, None]:
+    if place not in tokens:
+        return
+
+    if place in lineage:
+        return
+
     for subexpr in place:
-        not_subexpr = Expr.Not(subexpr).normalize()
         if isinstance(subexpr, Atom):
-            if not_subexpr in place:
-                return ProofTree(frozenset({subexpr, not_subexpr}), frozenset())
-            else:
-                continue
-        narrow_pass = lambda p, s, e: (p | {s}) - {e}
-        wide_pass = lambda p, s, e: p | {s}
-        for pass_fn in [narrow_pass, wide_pass]:
-            maybe_subproofs = frozenset(map(lambda x: backtrack(pass_fn(place, x, subexpr), tokens), subexpr.subexprs))
-            subproofs = maybe_subproofs - {None}
-            if type(subexpr) == Or and subproofs:
-                return ProofTree(place, frozenset({peek_any(subproofs)}))
-            elif type(subexpr) == And and subproofs == maybe_subproofs:
-                return ProofTree(place, frozenset(cast(Iterable[ProofTree], subproofs)))
-    return None
+            axiom = frozenset({subexpr, Expr.Not(subexpr).normalize()})
+            if axiom.issubset(place) and axiom in tokens:
+                # => a, ~a
+                yield ProofTree(place, frozenset({ProofTree(axiom, frozenset())}))
+
+        for subplaces_fn in [lambda x: (place | {x}) - {subexpr},
+                                lambda x: (place | {x})]:
+            any_subplaces: filter[frozenset[Expr]] = filter(lambda x: x in tokens, map(subplaces_fn, subexpr.subexprs()))
+            if type(subexpr) == Or:
+                any_subplaces = filter(lambda x: x in tokens, map(subplaces_fn, subexpr.subexprs()))
+                yield from map(lambda x: ProofTree(place, frozenset(backtrack(x, tokens, lineage | {place}))), any_subplaces)
+
+            all_subplaces: filter[frozenset[Expr]] = filter(lambda x: x in tokens, map(frozenset, product(*any_subplaces)))
+            if type(subexpr) == And:
+                yield ProofTree(place, frozenset(flat_map(lambda x: backtrack(x, tokens, lineage | {place}), all_subplaces)))
 
 
 def prove(expr: Expr) -> Optional[ProofTree]:
     coalescence = coalesce(expr)
     if coalescence is not None:
-        proof = backtrack(frozenset({expr}), coalescence)
-        if proof is not None:
+        print('True')
+        proofs = frozenset(backtrack(frozenset({expr}), coalescence))
+        if proofs:
+            proof = unwrap_any(proofs)
+            print('Proof:', proof)
             return proof
         else:
-            raise Exception('Proveable %s but failed to construct backtrack' % expr)
+            raise Exception(
+                'Proveable %s but failed to construct backtrack' % expr)
     else:
         return None
 
@@ -122,6 +126,4 @@ def prove(expr: Expr) -> Optional[ProofTree]:
 if __name__ == '__main__':
     import readline
     while True:
-        input_expr = parse(input('>> ')).normalize()
-        expr_proof = prove(input_expr)
-        print('Proof:', expr_proof)
+        prove(parse(input('>> ')).normalize())
