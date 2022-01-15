@@ -6,6 +6,23 @@ from typing import Callable, Optional
 from expression import Expr
 
 
+def parse(linput_: str, combinator=lambda x: x, parent='?') -> Expr:
+    linput_ = linput_.lstrip()
+    lexpr, lindex = _nongreedy_parse(linput_, parent=parent)
+
+    input_ = linput_[lindex + 1:].lstrip()
+    expr_fn, index = _operator_parse(input_, lexpr, parent=linput_)
+
+    if expr_fn is None:
+        expr = lexpr
+    else:
+        rinput_ = input_[index + 1:].lstrip()
+        rexpr = parse(rinput_, parent=linput_)
+        expr = expr_fn(rexpr)
+
+    return combinator(expr)
+
+
 def _find_closing(input_: str, opening='(', closing=')') -> int:
     next_open = input_.find(opening)
     next_close = input_.find(closing)
@@ -56,20 +73,3 @@ def _operator_parse(input_: str, lexpr: Expr, parent='?') -> tuple[Optional[Call
         msg = 'Expected empty, | or & in %s, got %s' % (parent, input_[0])
         raise Exception(msg)
     return (expr_fn, 0)
-
-
-def parse(linput_: str, combinator=lambda x: x, parent='?') -> Expr:
-    linput_ = linput_.lstrip()
-    lexpr, lindex = _nongreedy_parse(linput_, parent=parent)
-
-    input_ = linput_[lindex + 1:].lstrip()
-    expr_fn, index = _operator_parse(input_, lexpr, parent=linput_)
-
-    if expr_fn is None:
-        expr = lexpr
-    else:
-        rinput_ = input_[index + 1:].lstrip()
-        rexpr = parse(rinput_, parent=linput_)
-        expr = expr_fn(rexpr)
-
-    return combinator(expr)
