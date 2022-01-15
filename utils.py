@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 from itertools import chain
-from typing import Callable, Generator, Iterable, Collection, TypeVar
+from typing import Callable, Collection, Iterable, Optional, Tuple, TypeVar
 
 
 F = TypeVar('F')
@@ -18,6 +18,23 @@ def unwrap(seq: Collection[F]) -> F:
 
 
 def unwrap_any(seq: Iterable[F]) -> F:
+    maybe_elem = maybe_unwrap_any(seq)
+    if maybe_elem:
+        return maybe_elem
+    else:
+        raise AssertionError('Empty collection')
+
+
+def maybe_unwrap_any(seq: Iterable[F]) -> Optional[F]:
     for elem in seq:
         return elem
-    raise AssertionError('Empty collection')
+    else:
+        return None
+
+
+def peek(iter: Iterable[F]) -> Tuple[Optional[F], Iterable[F]]:
+    try:
+        head = next(iter) # type: ignore
+        return head, chain([head], iter)
+    except StopIteration:
+        return (None, iter)

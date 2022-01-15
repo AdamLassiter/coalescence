@@ -45,9 +45,9 @@ class TestBacktrack(unittest.TestCase):
         expr = parse('(a & b) | (a & ~b) | (~a & b) | (~a & ~b)').normalize()
         self.assertTrue(prove(expr) is not None)
 
-    def test_third_axiom(self):
-        expr = parse('(a & b & c) | (a & b & ~c) | (a & ~b & c) | (a & ~b & ~c) | (~a & b & c) | (~a & b & ~c) | (~a & ~b & c) | (~a & ~b & ~c)').normalize()
-        self.assertTrue(prove(expr) is not None)
+    # def test_third_axiom(self):
+    #     expr = parse('(a & b & c) | (a & b & ~c) | (a & ~b & c) | (a & ~b & ~c) | (~a & b & c) | (~a & b & ~c) | (~a & ~b & c) | (~a & ~b & ~c)').normalize()
+    #     self.assertTrue(prove(expr) is not None)
 
 
 if __name__ == '__main__':

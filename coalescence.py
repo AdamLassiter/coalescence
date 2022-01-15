@@ -8,7 +8,7 @@ from typing import Optional, Generator
 
 from expression import Expr, And, Or, Atom
 from parser import parse
-from utils import flat_map, unwrap, unwrap_any
+from utils import flat_map, peek, unwrap, unwrap_any, maybe_unwrap_any
 
 
 @dataclass(frozen=True)
@@ -92,33 +92,39 @@ def backtrack(place: frozenset[Expr], tokens: frozenset[frozenset[Expr]], lineag
         if isinstance(subexpr, Atom):
             axiom = frozenset({subexpr, Expr.Not(subexpr).normalize()})
             if axiom.issubset(place) and axiom in tokens:
-                # => a, ~a
+                # => S, a, ~a
                 yield ProofTree(place, frozenset({ProofTree(axiom, frozenset())}))
+                return
 
         for subplaces_fn in [lambda x: (place | {x}) - {subexpr},
-                                lambda x: (place | {x})]:
-            any_subplaces: filter[frozenset[Expr]] = filter(lambda x: x in tokens, map(subplaces_fn, subexpr.subexprs()))
+                             lambda x: (place | {x})]:
+            any_subplaces = filter(lambda x: x in tokens, map(subplaces_fn, subexpr.subexprs()))
             if type(subexpr) == Or:
-                any_subplaces = filter(lambda x: x in tokens, map(subplaces_fn, subexpr.subexprs()))
-                yield from map(lambda x: ProofTree(place, frozenset(backtrack(x, tokens, lineage | {place}))), any_subplaces)
+                # S, a => S, a || b
+                subproofs = frozenset(map(lambda x: backtrack(x, tokens, lineage | {place}), any_subplaces))
+                if any(subproofs):
+                    yield ProofTree(place, frozenset(flat_map(lambda x: x, subproofs)))
+                    return
 
             all_subplaces: filter[frozenset[Expr]] = filter(lambda x: x in tokens, map(frozenset, product(*any_subplaces)))
             if type(subexpr) == And:
-                yield ProofTree(place, frozenset(flat_map(lambda x: backtrack(x, tokens, lineage | {place}), all_subplaces)))
+                # S, a   S, b => S, a && b
+                subproofs = frozenset(map(lambda x: backtrack(x, tokens, lineage | {place}), all_subplaces))
+                if all(subproofs):
+                    yield ProofTree(place, frozenset(flat_map(lambda x: x, subproofs)))
+                    return
 
 
 def prove(expr: Expr) -> Optional[ProofTree]:
     coalescence = coalesce(expr)
     if coalescence is not None:
-        print('True')
         proofs = frozenset(backtrack(frozenset({expr}), coalescence))
         if proofs:
             proof = unwrap_any(proofs)
             print('Proof:', proof)
             return proof
         else:
-            raise Exception(
-                'Proveable %s but failed to construct backtrack' % expr)
+            raise Exception('Proveable %s but failed to construct backtrack' % expr)
     else:
         return None
 
