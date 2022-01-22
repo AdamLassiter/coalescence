@@ -6,7 +6,7 @@ from typing import Callable, Optional
 from expression import Expr
 
 
-def parse(linput_: str, combinator=lambda x: x, parent='?') -> Expr:
+def parse(linput_: str, parent='?') -> Expr:
     linput_ = linput_.lstrip()
     lexpr, lindex = _nongreedy_parse(linput_, parent=parent)
 
@@ -20,7 +20,7 @@ def parse(linput_: str, combinator=lambda x: x, parent='?') -> Expr:
         rexpr = parse(rinput_, parent=linput_)
         expr = expr_fn(rexpr)
 
-    return combinator(expr)
+    return expr
 
 
 def _find_closing(input_: str, opening='(', closing=')') -> int:

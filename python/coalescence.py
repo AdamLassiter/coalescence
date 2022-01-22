@@ -58,4 +58,3 @@ def _project(expr: Expr, tokens: frozenset[Place]) -> frozenset[Place]:
         for atom in expr.subexprs():
             projection |= {frozenset(token | {atom})}
     return frozenset(projection)
-
