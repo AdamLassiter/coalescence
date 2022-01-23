@@ -9,8 +9,9 @@ pub trait Parseable: Sized {
 }
 
 fn nongreedy_parse(input: &str, parent: &str) -> Result<(Expr, usize), String> {
+    log::debug!("[nongreedy-parse] {input:?} in {parent:?}");
     match input.chars().nth(0) {
-        None => Err(format!("Expected expression in {parent}, got empty")),
+        None => Err(format!("Expected expression in {parent:?}, got empty")),
         Some('(') => {
             let index = 1 + find_closing(&input.chars().skip(1).collect::<String>())?;
             assert_eq!(input.chars().nth(index), Some(')'));
@@ -31,6 +32,7 @@ fn nongreedy_parse(input: &str, parent: &str) -> Result<(Expr, usize), String> {
 }
 
 fn operator_parse(input: &str, left_expr: Expr, parent: &str) -> Result<(Option<Box<dyn Fn(Expr) -> Expr>>, usize), String> {
+    log::debug!("[operator-parse] ({left_expr:?}) {input:?} in {parent:?}");
     match input.chars().nth(0) {
         None => Ok((None, 0)),
         Some('&') => Ok((Some(Box::new(move |right_expr| Expr::and(&[
@@ -49,11 +51,12 @@ fn operator_parse(input: &str, left_expr: Expr, parent: &str) -> Result<(Option<
                 Expr::or(&[Expr::not(left_expr.clone()), right_expr.clone()]),
                 Expr::or(&[left_expr.clone(), Expr::not(right_expr)]),
             ]))), 0)),
-        _ => Err(format!("Expected [empty, |, &, >, =] in {parent} but got {input}"))
+        _ => Err(format!("Expected [empty, |, &, >, =] in {parent:?} but got {input:?}"))
     }
 }
 
 fn find_closing(input: &str) -> Result<usize, String> {
+    log::debug!("[find-closing] {input:?}");
     match (input.find('('), input.find(')')) {
         (Some(open), Some(close)) if open < close => {
             let find_match_close = find_closing(&input.chars().skip(open + 1).collect::<String>())?;
@@ -68,12 +71,14 @@ fn find_closing(input: &str) -> Result<usize, String> {
             assert_eq!(input.chars().nth(close), Some(')'));
             Ok(close)
         },
-        _ => Err(format!("Unmatched open-close in {input}"))
+        _ => Err(format!("Unmatched open-close in {input:?}"))
     }
 }
 
 impl Parseable for Expr {
     fn inner_parse(input: &str, parent: &str) -> Result<Self, String> {
+        log::debug!("[inner-parse] {input:?} in {parent:?}");
+
         let left_inp = input.trim_start();
         let (left_expr, left_idx) = nongreedy_parse(left_inp, &parent)?;
 
@@ -81,9 +86,9 @@ impl Parseable for Expr {
             .skip(left_idx + 1)
             .collect::<String>();
         let mid_inp = &mid_inp_string.trim_start();
-        
+
         let (maybe_expr_fn, mid_idx) = operator_parse(mid_inp, left_expr.clone(), left_inp)?;
-        
+
         Ok(match maybe_expr_fn {
             Some(expr_fn) => {
                 let right_inp_string = mid_inp.chars()

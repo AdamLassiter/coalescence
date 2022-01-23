@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, fmt::Display};
+use std::collections::BTreeSet;
 
 // TODO: This could be arena-allocated
 // i.e. store vec walk of tree and tree of vec indexes
@@ -121,8 +121,16 @@ impl Expr {
     }
 }
 
-impl Display for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::Parseable;
+
+    use super::*;
+
+    #[test]
+    fn test_axiom() {
+        let expr = Expr::parse("a > a").unwrap().normal();
+        log::debug!("{:?}", expr.lineaged_subexprs());
     }
 }

@@ -1,6 +1,6 @@
 use crate::{expression::Expr, Set, SSet};
 
-pub trait Coalesceable: Sized + Ord + Clone {
+pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
     fn children(&self) -> Set<Box<Self>>;
 
     fn dim_bound(&self) -> usize;
@@ -12,6 +12,7 @@ pub trait Coalesceable: Sized + Ord + Clone {
     fn project(&self, tokens: SSet<Self>) -> SSet<Self>;
 
     fn coalesce(&self) -> Option<SSet<Self>> {
+        log::debug!("[coalesce] {self:?}");
         let mut tokens = Self::spawn(self);
         if tokens.is_empty() {
             return None;
@@ -19,6 +20,7 @@ pub trait Coalesceable: Sized + Ord + Clone {
 
         let mut old_tokens = Set::new();
         while !tokens.contains(&Set::from([self.clone()])) {
+            log::debug!("[coalesce] {self:?} not in {tokens:?}");
             if old_tokens == tokens {
                 let current_dim = tokens.iter()
                     .map(Set::len)
@@ -39,18 +41,21 @@ pub trait Coalesceable: Sized + Ord + Clone {
 
 impl Coalesceable for Expr {
     fn children(&self) -> Set<Box<Self>> {
+        log::debug!("[children] {self:?}");
         match self {
             Expr::And(children) | Expr::Or(children) => children.clone(),
             Expr::Not(expr) => Set::from([expr.clone()]),
             _ => Set::new(),
         }
-    } 
+    }
 
     fn dim_bound(&self) -> usize {
+        log::debug!("[dim-bound] {self:?}");
         self.names().len() + 1
     }
 
     fn spawn(&self) -> SSet<Self> {
+        log::debug!("[spawn] {self:?}");
         let atoms = self.atoms();
         atoms
             .iter()
@@ -67,7 +72,9 @@ impl Coalesceable for Expr {
     }
 
     fn fire(&self, tokens: SSet<Self>) -> SSet<Self> {
-        tokens.iter()
+        log::debug!("[fire] {self:?} with {tokens:?}");
+        let tokens_clone = tokens.clone();
+        tokens_clone.iter()
             .flat_map(|token| token.iter()
                 .map(move |expr| (token, expr)))
             .flat_map(|(token, expr)| {
@@ -82,6 +89,7 @@ impl Coalesceable for Expr {
                     .collect::<Set<(Set<Self>, Expr, Vec<&Expr>)>>()
             })
             .filter_map(|(token, expr, lineage)| {
+                log::trace!("[fire] token {token:?} check expr {expr:?} with lineage {lineage:?}");
                 if lineage.len() <= 1 {
                     return None;
                 }
@@ -91,28 +99,31 @@ impl Coalesceable for Expr {
 
                 let siblings = match parent {
                     Expr::And(exprs) | Expr::Or(exprs) => exprs,
-                    _ => panic!("Expression {expr} has lineage {lineage:?}, but parent {parent} has no children!"),
+                    _ => panic!("Expression {expr:?} has lineage {lineage:?}, but parent {parent:?} has no children!"),
                 };
                 let sibling_predicates = siblings.iter()
                     .map(|sibling| {
                         let mut partial_sibling = partial_token.to_owned();
                         partial_sibling.insert(*sibling.to_owned());
-                        tokens.contains(&partial_sibling)
+                        tokens_clone.contains(&partial_sibling)
                     })
                     .collect::<Vec<bool>>();
 
                 let mut firing = partial_token.to_owned();
                 firing.insert(parent.to_owned());
+                log::trace!("[fire] firing predicates parent {parent:?} {}", sibling_predicates.len());
                 match (parent, sibling_predicates.len()) {
                     (Expr::And(_), x) if x == siblings.len() => Some(firing),
                     (Expr::Or(_), x) if x > 0 => Some(firing),
                     _ => None,
                 }
             })
+            .chain(tokens)
             .collect()
     }
 
     fn project(&self, tokens: SSet<Self>) -> SSet<Self> {
+        log::debug!("[project] {self:?} with {tokens:?}");
         tokens
             .iter()
             .flat_map(|token| {
