@@ -30,7 +30,6 @@ class TestParse(unittest.TestCase):
                          Expr.And(Expr.Or(Expr.Not(Expr.Atom('a')), Expr.Atom('b')),
                                   Expr.Or(Expr.Not(Expr.Atom('b')), Expr.Atom('a'))))
 
-
     def test_parse_braces(self):
         self.assertEqual(parse('~(a | b)'),
                          Expr.Not(Expr.Or(Expr.Atom('a'), Expr.Atom('b'))))

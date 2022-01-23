@@ -115,8 +115,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_axiom() {
-        let expr = Expr::parse("a > a").unwrap().normal();
-        assert!(expr.proof().is_ok());
+    fn test_proof_axiom() -> Result<(), String> {
+        let expr = Expr::parse("a > a")?.normal();
+        expr.proof()?;
+        Ok(())
     }
 }

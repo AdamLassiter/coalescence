@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::expression::Expr;
 
 pub trait Parseable: Sized {
@@ -95,5 +97,69 @@ impl Parseable for Expr {
             },
             None => left_expr,
         })
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_atom() -> Result<(), String> {
+        assert_eq!(Expr::parse("a")?,
+            Expr::Atom("a".to_string()));
+        assert_eq!(Expr::parse("alpha")?,
+            Expr::Atom("alpha".to_string()));
+        assert_eq!(Expr::parse("~a")?,
+            Expr::not(Expr::Atom("a".to_string())));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_operator() -> Result<(), String> {
+        assert_eq!(Expr::parse("a & b")?,
+            Expr::and(&[
+                Expr::Atom("a".to_string()),
+                Expr::Atom("b".to_string())]));
+        assert_eq!(Expr::parse("a | b")?,
+            Expr::or(&[
+                Expr::Atom("a".to_string()),
+                Expr::Atom("b".to_string())]));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_syntactic_sugar() -> Result<(), String> {
+        assert_eq!(Expr::parse("a > b")?,
+            Expr::or(&[
+                Expr::not(Expr::Atom("a".to_string())),
+                Expr::Atom("b".to_string())]));
+        assert_eq!(Expr::parse("a = b")?,
+            Expr::and(&[
+                Expr::or(&[
+                    Expr::not(Expr::Atom("a".to_string())),
+                    Expr::Atom("b".to_string())]),
+                Expr::or(&[
+                    Expr::not(Expr::Atom("b".to_string())),
+                    Expr::Atom("a".to_string())])]));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_braces() -> Result<(), String> {
+        assert_eq!(Expr::parse("~(a | b)")?,
+            Expr::or(&[
+                Expr::not(Expr::Atom("a".to_string())),
+                Expr::Atom("b".to_string())]));
+        assert_eq!(Expr::parse("a = b")?,
+            Expr::and(&[
+                Expr::or(&[
+                    Expr::not(Expr::Atom("a".to_string())),
+                    Expr::Atom("b".to_string())]),
+                Expr::or(&[
+                    Expr::not(Expr::Atom("b".to_string())),
+                    Expr::Atom("a".to_string())])]));
+        Ok(())
     }
 }
