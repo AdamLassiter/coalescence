@@ -1,5 +1,6 @@
 use crate::{coalescence::Coalesceable, expression::Expr, SSet, Set, Edge, Map, Node};
 
+#[derive(Debug)]
 pub struct Proof<T> {
     root: T,
     node_idx: Node,
@@ -84,7 +85,7 @@ impl <U: Coalesceable> Proof<Set<U>> {
                 return true;
             }
         }
-        
+
         false
     }
 
