@@ -1,5 +1,3 @@
-use log::debug;
-
 use crate::expression::Expr;
 
 pub trait Parseable: Sized {
@@ -108,6 +106,8 @@ impl Parseable for Expr {
 
 #[cfg(test)]
 mod tests {
+    use crate::expression::Expr;
+
     use super::*;
 
     #[test]
@@ -154,9 +154,9 @@ mod tests {
     #[test]
     fn test_parse_braces() -> Result<(), String> {
         assert_eq!(Expr::parse("~(a | b)")?,
-            Expr::or(&[
-                Expr::not(Expr::Atom("a".to_string())),
-                Expr::Atom("b".to_string())]));
+            Expr::not(Expr::or(&[
+                Expr::Atom("a".to_string()),
+                Expr::Atom("b".to_string())])));
         assert_eq!(Expr::parse("a = b")?,
             Expr::and(&[
                 Expr::or(&[

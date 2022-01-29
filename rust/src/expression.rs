@@ -25,6 +25,7 @@ impl Expr {
     }
 
     pub fn inverse(&self) -> Self {
+        log::debug!("[inverse] {self:?}");
         match self {
             Expr::And(subexprs) => Expr::Or(
                 subexprs
@@ -71,6 +72,7 @@ impl Expr {
     }
 
     pub fn normal(&self) -> Self {
+        log::debug!("[normal] {self:?}");
         match self {
             Expr::And(subexprs) => Expr::normal_and(subexprs.clone()),
             Expr::Or(subexprs) => Expr::normal_or(subexprs.clone()),
@@ -81,6 +83,7 @@ impl Expr {
     }
 
     pub fn names(&self) -> BTreeSet<String> {
+        log::debug!("[names] {self:?}");
         match self {
             Expr::And(subexprs) | Expr::Or(subexprs) => subexprs.iter()
                 .flat_map(|expr| expr.names())
@@ -91,6 +94,7 @@ impl Expr {
     }
 
     pub fn atoms(&self) -> BTreeSet<&Expr> {
+        log::debug!("[atoms] {self:?}");
         match self {
             Expr::And(subexprs) | Expr::Or(subexprs) => subexprs.iter()
                 .flat_map(|expr| expr.atoms())
@@ -101,12 +105,14 @@ impl Expr {
     }
 
     pub fn subexprs(&self) -> BTreeSet<&Expr> {
+        log::debug!("[subexprs] {self:?}");
         self.lineaged_subexprs().iter()
             .map(|lineage| lineage[0])
             .collect()
     }
 
     pub fn lineaged_subexprs(&self) -> BTreeSet<Vec<&Expr>> {
+        log::debug!("[lineaged-subexprs] {self:?}");
         match self {
             Expr::And(exprs) | Expr::Or(exprs) => {
                 exprs.iter()
