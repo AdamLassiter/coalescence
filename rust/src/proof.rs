@@ -121,4 +121,39 @@ mod tests {
         expr.proof()?;
         Ok(())
     }
+
+    #[test]
+    fn test_proof_duplicate_axiom() -> Result<(), String> {
+        let expr = Expr::parse("(a > a) & (a > a)")?.normal();
+        expr.proof()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_proof_two_axioms() -> Result<(), String> {
+        let expr = Expr::parse("(a > a) & (b > b)")?.normal();
+        expr.proof()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_proof_second_axiom() -> Result<(), String> {
+        let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b) | (~a & ~b)")?.normal();
+        expr.proof()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_proof_second_axiom_invalid() -> Result<(), String> {
+        let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
+        let _ = expr.proof().unwrap_err();
+        Ok(())
+    }
+
+    #[test]
+    fn test_proof_fourth_axiom() -> Result<(), String> {
+        let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
+        expr.proof()?;
+        Ok(())
+    }
 }
