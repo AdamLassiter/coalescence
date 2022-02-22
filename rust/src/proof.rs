@@ -72,16 +72,19 @@ impl <U: Coalesceable> Proof<Set<U>> {
         if  parent_diff.len() == 1 && child_diff.len() == 1 {
             let &parent = parent_diff.first().unwrap();
             let &child =  child_diff.first().unwrap();
-            if let Some(_) = parent.children().get(child) {
+            if parent.children()
+                .get(child)
+                .is_some() {
                 return true;
             }
         }
         // Contraction: S, c => S  <=>  p in S : c in p
         if  parent_diff.len() <= 1 && child_diff.len() == 1 {
             let &child = child_diff.first().unwrap();
-            if let Some(_) = start.iter()
+            if start.iter()
                 .filter(|&sub_parent| sub_parent.children().contains(child))
-                .next() {
+                .next()
+                .is_some() {
                 return true;
             }
         }
@@ -90,7 +93,35 @@ impl <U: Coalesceable> Proof<Set<U>> {
     }
 
     fn verify(&self) -> Result<(), String> {
-        Ok(())
+        self.walk_to_axiom(&self.root)
+    }
+
+    fn walk_to_axiom(&self, node: Node) -> Result<(), String> {
+        let edges = self.edges.iter()
+            .filter_map(|edge| match edge {
+                (from, to) if from == self.node_idx => Some(to),
+                _ => None,
+            })
+            .collect();
+        if edges.is_empty() {
+            let place: [U] = self.nodes.iter()
+                .find_map(|(key, val)| if val == node {Some(key)} else {None})
+                .ok_or(format!("Node index {node:?} is not in nodes-map"))?
+                .into();
+            match place {
+                [a, b] if a == b.inverse() => Ok(()),
+                _ => Err("Node {place:?} not an axiom but terminates a  proof tree".to_string()),
+            }
+        } else {
+            edges.iter()
+                .map(|next| self.walk_to_axiom(next))
+                .fold(Ok(()), |acc, elem: Result<(), String>| match (acc, elem) {
+                    (Err(left), Err(right)) => Err(format!("{left}\n{right}")),
+                    (Err(left), Ok(())) => Err(left),
+                    (Ok(()), Err(right)) => Err(right),
+                    (Ok(()), Ok(())) => Ok(()),
+                })
+        }
     }
 }
 
