@@ -54,21 +54,25 @@ impl Expr {
                     Expr::And(subexprs) => subexprs,
                     expr => BTreeSet::from([expr.into()]),
                 })
-                .collect()
-            )
+                .collect(),
+        )
     }
 
     fn normal_or(subexprs: BTreeSet<Box<Expr>>) -> Expr {
-        Expr::Or(
-            subexprs
-                .iter()
-                .map(|subexpr| subexpr.clone().normal())
-                .flat_map(|subexpr| match subexpr {
-                    Expr::Or(subexprs) => subexprs,
-                    expr => BTreeSet::from([expr.into()]),
-                })
-                .collect()
+        if subexprs.len() > 1 {
+            Expr::Or(
+                subexprs
+                    .iter()
+                    .map(|subexpr| subexpr.clone().normal())
+                    .flat_map(|subexpr| match subexpr {
+                        Expr::Or(subexprs) => subexprs,
+                        expr => BTreeSet::from([expr.into()]),
+                    })
+                    .collect(),
             )
+        } else {
+            *subexprs.first().unwrap().clone()
+        }
     }
 
     pub fn normal(&self) -> Self {
@@ -85,9 +89,9 @@ impl Expr {
     pub fn names(&self) -> BTreeSet<String> {
         log::debug!("[names] {self:?}");
         match self {
-            Expr::And(subexprs) | Expr::Or(subexprs) => subexprs.iter()
-                .flat_map(|expr| expr.names())
-                .collect(),
+            Expr::And(subexprs) | Expr::Or(subexprs) => {
+                subexprs.iter().flat_map(|expr| expr.names()).collect()
+            }
             Expr::Atom(name) | Expr::NotAtom(name) => BTreeSet::from([name.to_string()]),
             Expr::Not(expr) => expr.names(),
         }
@@ -96,9 +100,9 @@ impl Expr {
     pub fn atoms(&self) -> BTreeSet<&Expr> {
         log::debug!("[atoms] {self:?}");
         match self {
-            Expr::And(subexprs) | Expr::Or(subexprs) => subexprs.iter()
-                .flat_map(|expr| expr.atoms())
-                .collect(),
+            Expr::And(subexprs) | Expr::Or(subexprs) => {
+                subexprs.iter().flat_map(|expr| expr.atoms()).collect()
+            }
             Expr::Atom(_) | Expr::NotAtom(_) => BTreeSet::from([self]),
             Expr::Not(expr) => expr.atoms(),
         }
@@ -106,7 +110,8 @@ impl Expr {
 
     pub fn subexprs(&self) -> BTreeSet<&Expr> {
         log::debug!("[subexprs] {self:?}");
-        self.lineaged_subexprs().iter()
+        self.lineaged_subexprs()
+            .iter()
             .map(|lineage| lineage[0])
             .collect()
     }
@@ -114,19 +119,17 @@ impl Expr {
     pub fn lineaged_subexprs(&self) -> BTreeSet<Vec<&Expr>> {
         log::debug!("[lineaged-subexprs] {self:?}");
         match self {
-            Expr::And(exprs) | Expr::Or(exprs) => {
-                exprs.iter()
-                    .flat_map(|expr| expr.lineaged_subexprs())
-                    .map(|lineage| [lineage, vec![self]].concat())
-                    .chain([vec![self]])
-                    .collect()
-            },
+            Expr::And(exprs) | Expr::Or(exprs) => exprs
+                .iter()
+                .flat_map(|expr| expr.lineaged_subexprs())
+                .map(|lineage| [lineage, vec![self]].concat())
+                .chain([vec![self]])
+                .collect(),
             Expr::Atom(_) | Expr::NotAtom(_) => BTreeSet::from([vec![self]]),
-            Expr::Not(_) => panic!("CBA")
+            Expr::Not(_) => panic!("CBA"),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,10 @@
-use crate::{expression::Expr, Set, SSet};
+use crate::{expression::Expr, SSet, Set};
 
 pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
+    fn axiom_set(&self) -> Set<Self>;
+
+    fn is_axiom(&self) -> bool;
+
     fn children(&self) -> Set<Box<Self>>;
 
     fn dim_bound(&self) -> usize;
@@ -22,9 +26,7 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
         while !tokens.contains(&Set::from([self.clone()])) {
             log::debug!("[coalesce] {self:?} not in {tokens:?}");
             if old_tokens == tokens {
-                let current_dim = tokens.iter()
-                    .map(Set::len)
-                    .fold(0, |a, b| a.max(b));
+                let current_dim = tokens.iter().map(Set::len).fold(0, |a, b| a.max(b));
                 if current_dim < Self::dim_bound(self) {
                     tokens = Self::project(self, tokens);
                 } else {
@@ -40,6 +42,21 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
 }
 
 impl Coalesceable for Expr {
+    fn axiom_set(&self) -> Set<Self> {
+        Set::from([self.clone(), self.inverse().normal()])
+    }
+
+    fn is_axiom(&self) -> bool {
+        match self {
+            Expr::Or(subexprs) => {
+                subexprs.first()
+                    .map(|subexpr| subexprs.contains(&subexpr.inverse().normal()) && subexprs.len() == 2)
+                    .unwrap_or(false)
+            },
+            _ => false,
+        }
+    }
+
     fn children(&self) -> Set<Box<Self>> {
         log::debug!("[children] {self:?}");
         match self {
@@ -60,10 +77,9 @@ impl Coalesceable for Expr {
         atoms
             .iter()
             .filter_map(|&atom| {
-                let not_atom = atom.inverse().normal();
-                if atoms.contains(&not_atom) {
-                    let axiom = Set::from([atom.to_owned(), not_atom]);
-                    Some(axiom)
+                let axiom_guess = atom.axiom_set();
+                if axiom_guess.iter().all(|atom| atoms.contains(atom)) {
+                    Some(axiom_guess)
                 } else {
                     None
                 }
