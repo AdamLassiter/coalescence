@@ -167,7 +167,8 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Parseable;
+    use crate::test_init;
+use crate::parser::Parseable;
 
     use super::*;
 
