@@ -47,7 +47,7 @@ impl Coalesceable for Expr {
     }
 
     fn is_axiom(&self) -> bool {
-        match self {
+        match self.normal() {
             Expr::Or(subexprs) => {
                 subexprs.first()
                     .map(|subexpr| subexprs.contains(&subexpr.inverse().normal()) && subexprs.len() == 2)

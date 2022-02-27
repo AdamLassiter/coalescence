@@ -46,20 +46,32 @@ impl Expr {
     }
 
     fn normal_and(subexprs: BTreeSet<Box<Expr>>) -> Expr {
-        Expr::And(
-            subexprs
-                .iter()
-                .map(|subexpr| subexpr.clone().normal())
-                .flat_map(|subexpr| match subexpr {
-                    Expr::And(subexprs) => subexprs,
-                    expr => BTreeSet::from([expr.into()]),
-                })
-                .collect(),
-        )
+        if subexprs.len() == 1 {
+            *subexprs
+                .first()
+                .unwrap()
+                .clone()
+        } else {
+            Expr::And(
+                subexprs
+                    .iter()
+                    .map(|subexpr| subexpr.clone().normal())
+                    .flat_map(|subexpr| match subexpr {
+                        Expr::And(subexprs) => subexprs,
+                        expr => BTreeSet::from([expr.into()]),
+                    })
+                    .collect(),
+            )
+        }
     }
 
     fn normal_or(subexprs: BTreeSet<Box<Expr>>) -> Expr {
-        if subexprs.len() > 1 {
+        if subexprs.len() == 1 {
+            *subexprs
+                .first()
+                .unwrap()
+                .clone()
+        } else {
             Expr::Or(
                 subexprs
                     .iter()
@@ -70,8 +82,6 @@ impl Expr {
                     })
                     .collect(),
             )
-        } else {
-            *subexprs.first().unwrap().clone()
         }
     }
 
@@ -133,12 +143,14 @@ impl Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Parseable;
+    use crate::{parser::Parseable, test_init};
 
     use super::*;
 
     #[test]
     fn test_axiom() {
+        test_init();
+
         let expr = Expr::parse("a > a").unwrap().normal();
         log::debug!("{:?}", expr.lineaged_subexprs());
     }

@@ -106,12 +106,14 @@ impl Parseable for Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::expression::Expr;
+    use crate::{expression::Expr, test_init};
 
     use super::*;
 
     #[test]
     fn test_parse_atom() -> Result<(), String> {
+        test_init();
+
         assert_eq!(Expr::parse("a")?,
             Expr::Atom("a".to_string()));
         assert_eq!(Expr::parse("alpha")?,
@@ -123,6 +125,8 @@ mod tests {
 
     #[test]
     fn test_parse_operator() -> Result<(), String> {
+        test_init();
+
         assert_eq!(Expr::parse("a & b")?,
             Expr::and(&[
                 Expr::Atom("a".to_string()),
@@ -136,6 +140,8 @@ mod tests {
 
     #[test]
     fn test_parse_syntactic_sugar() -> Result<(), String> {
+        test_init();
+
         assert_eq!(Expr::parse("a > b")?,
             Expr::or(&[
                 Expr::not(Expr::Atom("a".to_string())),
@@ -153,6 +159,8 @@ mod tests {
 
     #[test]
     fn test_parse_braces() -> Result<(), String> {
+        test_init();
+
         assert_eq!(Expr::parse("~(a | b)")?,
             Expr::not(Expr::or(&[
                 Expr::Atom("a".to_string()),

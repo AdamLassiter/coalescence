@@ -24,7 +24,8 @@ impl Proveable for Expr {
     where
         Self: Coalesceable,
     {
-        let coalesced = self.coalesce().ok_or("Not coalesceable")?;
+        let coalesced = self.coalesce()
+            .ok_or("Not coalesceable")?;
 
         let mut proof = Proof::new(self);
         proof.backtrack(&coalesced);
@@ -55,6 +56,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     fn walk_to_axiom(&self, node: Node) -> Result<(), String> {
+        log::debug!("[verify] walked to {node:?}");
         let edges: Vec<Node> = self
             .edges
             .iter()
@@ -105,6 +107,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 let start = self.node(place);
                 let end = self.node(sub_place);
                 if let Some(_edge) = self.edge(&(start, end)) {
+                    log::debug!("[backtrack] from {place:?} to {sub_place:?}");
                     self.backtrack_dag(sub_place, tokens);
                 }
             });
@@ -170,6 +173,8 @@ mod tests {
 
     #[test]
     fn test_proof_axiom() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("a > a")?.normal();
         let proof = expr.proof()?;
         proof.verify()?;
@@ -178,6 +183,8 @@ mod tests {
 
     #[test]
     fn test_proof_duplicate_axiom() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("(a > a) & (a > a)")?.normal();
         let proof = expr.proof()?;
         proof.verify()?;
@@ -186,6 +193,8 @@ mod tests {
 
     #[test]
     fn test_proof_two_axioms() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("(a > a) & (b > b)")?.normal();
         let proof = expr.proof()?;
         proof.verify()?;
@@ -194,6 +203,8 @@ mod tests {
 
     #[test]
     fn test_proof_second_axiom() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b) | (~a & ~b)")?.normal();
         let proof = expr.proof()?;
         proof.verify()?;
@@ -202,6 +213,8 @@ mod tests {
 
     #[test]
     fn test_proof_second_axiom_invalid() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
         let proof = expr.proof();
         let _ = proof.unwrap_err();
@@ -210,6 +223,8 @@ mod tests {
 
     // #[test]
     fn test_proof_fourth_axiom() -> Result<(), String> {
+        test_init();
+
         let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
         let proof = expr.proof()?;
         proof.verify()?;
