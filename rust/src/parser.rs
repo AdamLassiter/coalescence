@@ -9,7 +9,7 @@ pub trait Parseable: Sized {
 }
 
 fn nongreedy_parse(input: &str, parent: &str) -> Result<(Expr, usize), String> {
-    log::debug!("[nongreedy-parse] {input:?} in {parent:?}");
+    log::trace!("[nongreedy-parse] {input:?} in {parent:?}");
     match input.chars().nth(0) {
         None => Err(format!("Expected expression in {parent:?}, got empty")),
         Some('(') => {
@@ -32,7 +32,7 @@ fn nongreedy_parse(input: &str, parent: &str) -> Result<(Expr, usize), String> {
 }
 
 fn operator_parse(input: &str, left_expr: Expr, parent: &str) -> Result<(Option<Box<dyn Fn(Expr) -> Expr>>, usize), String> {
-    log::debug!("[operator-parse] ({left_expr:?}) {input:?} in {parent:?}");
+    log::trace!("[operator-parse] ({left_expr:?}) {input:?} in {parent:?}");
     match input.chars().nth(0) {
         None => Ok((None, 0)),
         Some('&') => Ok((Some(Box::new(move |right_expr| Expr::and(&[
@@ -56,7 +56,7 @@ fn operator_parse(input: &str, left_expr: Expr, parent: &str) -> Result<(Option<
 }
 
 fn find_closing(input: &str) -> Result<usize, String> {
-    log::debug!("[find-closing] {input:?}");
+    log::trace!("[find-closing] {input:?}");
     match (input.find('('), input.find(')')) {
         (Some(open), Some(close)) if open < close => {
             let find_match_close = find_closing(&input.chars().skip(open + 1).collect::<String>())?;
@@ -77,7 +77,7 @@ fn find_closing(input: &str) -> Result<usize, String> {
 
 impl Parseable for Expr {
     fn inner_parse(input: &str, parent: &str) -> Result<Self, String> {
-        log::debug!("[inner-parse] {input:?} in {parent:?}");
+        log::trace!("[inner-parse] {input:?} in {parent:?}");
 
         let left_inp = input.trim_start();
         let (left_expr, left_idx) = nongreedy_parse(left_inp, &parent)?;
@@ -106,46 +106,52 @@ impl Parseable for Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{expression::Expr, test_init};
+    use crate::{expression::Expr, log_init};
 
     use super::*;
 
     #[test]
-    fn test_parse_atom() -> Result<(), String> {
-        test_init();
+    fn parse_atom() -> Result<(), String> {
+        log_init();
 
         assert_eq!(Expr::parse("a")?,
             Expr::Atom("a".to_string()));
+
         assert_eq!(Expr::parse("alpha")?,
             Expr::Atom("alpha".to_string()));
+
         assert_eq!(Expr::parse("~a")?,
             Expr::not(Expr::Atom("a".to_string())));
+
         Ok(())
     }
 
     #[test]
-    fn test_parse_operator() -> Result<(), String> {
-        test_init();
+    fn parse_operator() -> Result<(), String> {
+        log_init();
 
         assert_eq!(Expr::parse("a & b")?,
             Expr::and(&[
                 Expr::Atom("a".to_string()),
                 Expr::Atom("b".to_string())]));
+
         assert_eq!(Expr::parse("a | b")?,
             Expr::or(&[
                 Expr::Atom("a".to_string()),
                 Expr::Atom("b".to_string())]));
+
         Ok(())
     }
 
     #[test]
-    fn test_parse_syntactic_sugar() -> Result<(), String> {
-        test_init();
+    fn parse_syntactic_sugar() -> Result<(), String> {
+        log_init();
 
         assert_eq!(Expr::parse("a > b")?,
             Expr::or(&[
                 Expr::not(Expr::Atom("a".to_string())),
                 Expr::Atom("b".to_string())]));
+
         assert_eq!(Expr::parse("a = b")?,
             Expr::and(&[
                 Expr::or(&[
@@ -154,17 +160,19 @@ mod tests {
                 Expr::or(&[
                     Expr::not(Expr::Atom("b".to_string())),
                     Expr::Atom("a".to_string())])]));
+
         Ok(())
     }
 
     #[test]
-    fn test_parse_braces() -> Result<(), String> {
-        test_init();
+    fn parse_braces() -> Result<(), String> {
+        log_init();
 
         assert_eq!(Expr::parse("~(a | b)")?,
             Expr::not(Expr::or(&[
                 Expr::Atom("a".to_string()),
                 Expr::Atom("b".to_string())])));
+
         assert_eq!(Expr::parse("a = b")?,
             Expr::and(&[
                 Expr::or(&[
@@ -173,6 +181,7 @@ mod tests {
                 Expr::or(&[
                     Expr::not(Expr::Atom("b".to_string())),
                     Expr::Atom("a".to_string())])]));
+
         Ok(())
     }
 }

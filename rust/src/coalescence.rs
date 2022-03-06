@@ -16,7 +16,7 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
     fn project(&self, tokens: SSet<Self>) -> SSet<Self>;
 
     fn coalesce(&self) -> Option<SSet<Self>> {
-        log::debug!("[coalesce] {self:?}");
+        log::trace!("[coalesce] {self:?}");
         let mut tokens = Self::spawn(self);
         if tokens.is_empty() {
             return None;
@@ -24,7 +24,7 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
 
         let mut old_tokens = Set::new();
         while !tokens.contains(&Set::from([self.clone()])) {
-            log::debug!("[coalesce] {self:?} not in {tokens:?}");
+            log::trace!("[coalesce] {self:?} not in {tokens:?}");
             if old_tokens == tokens {
                 let current_dim = tokens.iter().map(Set::len).fold(0, |a, b| a.max(b));
                 if current_dim < Self::dim_bound(self) {
@@ -47,6 +47,7 @@ impl Coalesceable for Expr {
     }
 
     fn is_axiom(&self) -> bool {
+        log::trace!("[is-axiom] {self:?}");
         match self.normal() {
             Expr::Or(subexprs) => {
                 subexprs.first()
@@ -58,7 +59,7 @@ impl Coalesceable for Expr {
     }
 
     fn children(&self) -> Set<Box<Self>> {
-        log::debug!("[children] {self:?}");
+        log::trace!("[children] {self:?}");
         match self {
             Expr::And(children) | Expr::Or(children) => children.clone(),
             Expr::Not(expr) => Set::from([expr.clone()]),
@@ -67,12 +68,12 @@ impl Coalesceable for Expr {
     }
 
     fn dim_bound(&self) -> usize {
-        log::debug!("[dim-bound] {self:?}");
+        log::trace!("[dim-bound] {self:?}");
         self.names().len() + 1
     }
 
     fn spawn(&self) -> SSet<Self> {
-        log::debug!("[spawn] {self:?}");
+        log::trace!("[spawn] {self:?}");
         let atoms = self.atoms();
         atoms
             .iter()
@@ -88,13 +89,13 @@ impl Coalesceable for Expr {
     }
 
     fn fire(&self, tokens: SSet<Self>) -> SSet<Self> {
-        log::debug!("[fire] {self:?} with {tokens:?}");
+        log::trace!("[fire] {self:?} with {tokens:?}");
         let tokens_clone = tokens.clone();
         tokens_clone.iter()
             .flat_map(|token| token.iter()
                 .map(move |expr| (token, expr)))
             .flat_map(|(token, expr)| {
-                self.lineaged_subexprs().to_owned().iter()
+                self.lineage().to_owned().iter()
                     .filter_map(move |lineage| {
                         if *lineage[0] == *expr {
                             Some((token.to_owned(), expr.to_owned(), lineage.to_owned()))
@@ -139,7 +140,7 @@ impl Coalesceable for Expr {
     }
 
     fn project(&self, tokens: SSet<Self>) -> SSet<Self> {
-        log::debug!("[project] {self:?} with {tokens:?}");
+        log::trace!("[project] {self:?} with {tokens:?}");
         tokens
             .iter()
             .flat_map(|token| {

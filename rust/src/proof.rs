@@ -24,14 +24,12 @@ impl Proveable for Expr {
     where
         Self: Coalesceable,
     {
-        let coalesced = self.coalesce()
-            .ok_or("Not coalesceable")?;
+        log::trace!("[proof] {self:?}");
+        let coalesced = self.coalesce().ok_or("Not coalesceable")?;
 
         let mut proof = Proof::new(self);
         proof.backtrack(&coalesced);
 
-        // proof.verify()
-        //     .map(|_| proof)
         Ok(proof)
     }
 }
@@ -48,6 +46,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     pub fn verify(&self) -> Result<(), String> {
+        log::trace!("[verify] {self:?}");
         let &root_node = self
             .nodes
             .get(&self.root)
@@ -56,7 +55,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     fn walk_to_axiom(&self, node: Node) -> Result<(), String> {
-        log::debug!("[verify] walked to {node:?}");
+        log::trace!("[walk-to-axiom] walked to {node:?}");
         let edges: Vec<Node> = self
             .edges
             .iter()
@@ -66,6 +65,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
             })
             .collect();
         if edges.is_empty() {
+            log::trace!("[walk-to-axiom] edges empty at {node:?}");
             let place = self
                 .nodes
                 .iter()
@@ -83,6 +83,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 ))
             }
         } else {
+            log::trace!("[walk-to-axiom] traversing edges {edges:?} at {node:?}");
             edges
                 .iter()
                 .map(|&next| self.walk_to_axiom(next))
@@ -96,10 +97,12 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     fn backtrack(&mut self, tokens: &SSet<U>) {
+        log::trace!("[backtrack] {tokens:?}");
         self.backtrack_dag(&self.root.clone(), tokens);
     }
 
     fn backtrack_dag(&mut self, place: &Set<U>, tokens: &SSet<U>) {
+        log::trace!("[backtrack] at place {place:?} with tokens {tokens:?}");
         tokens
             .iter()
             .filter(|&sub_place| Self::is_edge(&place, sub_place))
@@ -107,13 +110,14 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 let start = self.node(place);
                 let end = self.node(sub_place);
                 if let Some(_edge) = self.edge(&(start, end)) {
-                    log::debug!("[backtrack] from {place:?} to {sub_place:?}");
+                    log::trace!("[backtrack] from {place:?} to {sub_place:?}");
                     self.backtrack_dag(sub_place, tokens);
                 }
             });
     }
 
     fn node(&mut self, node: &Set<U>) -> Node {
+        log::trace!("[node] {node:?}");
         self.nodes.get(&node).map(|&x| x).unwrap_or_else(|| {
             let idx = self.node_idx;
             self.nodes.insert(node.clone(), idx);
@@ -123,6 +127,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     fn edge(&mut self, edge: &(Node, Node)) -> Option<Edge> {
+        log::trace!("[edge] {edge:?}");
         self.edges.get(edge).map(|_| None).unwrap_or_else(|| {
             let idx = self.edge_idx;
             self.edges.insert(edge.clone(), idx);
@@ -132,8 +137,10 @@ impl<U: Coalesceable> Proof<Set<U>> {
     }
 
     fn is_edge(start: &Set<U>, end: &Set<U>) -> bool {
+        log::trace!("[is-edge] from {start:?} to {end:?}");
         // Weakening: S => S, p
         if start.is_superset(end) {
+            log::trace!("[is-edge] is edge by weakening rule");
             return true;
         }
 
@@ -145,6 +152,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
             let &parent = parent_diff.first().unwrap();
             let &child = child_diff.first().unwrap();
             if parent.children().get(child).is_some() {
+                log::trace!("[is-edge] is edge by binary-operator rule");
                 return true;
             }
         }
@@ -157,24 +165,26 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 .next()
                 .is_some()
             {
+                log::trace!("[is-edge] is edge by contraction rule");
                 return true;
             }
         }
 
+        log::trace!("[is-edge] not edge");
         false
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::test_init;
-use crate::parser::Parseable;
+    use crate::log_init;
+    use crate::parser::Parseable;
 
     use super::*;
 
     #[test]
-    fn test_proof_axiom() -> Result<(), String> {
-        test_init();
+    fn proof_axiom() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("a > a")?.normal();
         let proof = expr.proof()?;
@@ -183,8 +193,8 @@ use crate::parser::Parseable;
     }
 
     #[test]
-    fn test_proof_duplicate_axiom() -> Result<(), String> {
-        test_init();
+    fn proof_duplicate_axiom() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("(a > a) & (a > a)")?.normal();
         let proof = expr.proof()?;
@@ -193,8 +203,8 @@ use crate::parser::Parseable;
     }
 
     #[test]
-    fn test_proof_two_axioms() -> Result<(), String> {
-        test_init();
+    fn proof_two_axioms() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("(a > a) & (b > b)")?.normal();
         let proof = expr.proof()?;
@@ -203,8 +213,8 @@ use crate::parser::Parseable;
     }
 
     #[test]
-    fn test_proof_second_axiom() -> Result<(), String> {
-        test_init();
+    fn proof_second_axiom() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b) | (~a & ~b)")?.normal();
         let proof = expr.proof()?;
@@ -213,8 +223,8 @@ use crate::parser::Parseable;
     }
 
     #[test]
-    fn test_proof_second_axiom_invalid() -> Result<(), String> {
-        test_init();
+    fn proof_second_axiom_invalid() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
         let proof = expr.proof();
@@ -223,8 +233,8 @@ use crate::parser::Parseable;
     }
 
     // #[test]
-    fn test_proof_fourth_axiom() -> Result<(), String> {
-        test_init();
+    fn proof_fourth_axiom() -> Result<(), String> {
+        log_init();
 
         let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
         let proof = expr.proof()?;

@@ -18,6 +18,9 @@ pub(crate) type Map<K, V> = BTreeMap<K, V>;
 pub(crate) type Node = usize;
 pub(crate) type Edge = usize;
 
-pub (crate) fn test_init() {
-    let _ = env_logger::builder().is_test(true).try_init();
+#[allow(dead_code)]
+pub (crate) fn log_init() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .try_init();
 }
