@@ -1,15 +1,38 @@
 use crate::Set;
 
-
 // TODO: This could be arena-allocated
 // i.e. store vec walk of tree and tree of vec indexes
-#[derive(Ord, Eq, PartialOrd, PartialEq, Debug, Clone)]
+#[derive(Ord, Eq, PartialOrd, PartialEq, Clone)]
 pub enum Expr {
     And(Set<Box<Expr>>),
     Or(Set<Box<Expr>>),
     Not(Box<Expr>),
     Atom(String),
     NotAtom(String),
+}
+
+impl std::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::And(exprs) => f.write_str(
+                &exprs
+                    .iter()
+                    .map(|expr| format!("{expr:?}"))
+                    .collect::<Vec<_>>()
+                    .join(" & "),
+            ),
+            Self::Or(exprs) => f.write_str(
+                &exprs
+                    .iter()
+                    .map(|expr| format!("{expr:?}"))
+                    .collect::<Vec<_>>()
+                    .join(" | "),
+            ),
+            Self::Not(expr) => f.write_fmt(format_args!("~({expr:?})")),
+            Self::Atom(name) => f.write_fmt(format_args!("{name}")),
+            Self::NotAtom(name) => f.write_fmt(format_args!("~{name}")),
+        }
+    }
 }
 
 impl Expr {
@@ -57,10 +80,7 @@ impl Expr {
             })
             .collect();
         if norm.len() == 1 {
-            *norm
-                .first()
-                .unwrap()
-                .clone()
+            *norm.first().unwrap().clone()
         } else {
             Expr::And(norm)
         }
@@ -77,10 +97,7 @@ impl Expr {
             })
             .collect();
         if norm.len() == 1 {
-            *norm
-                .first()
-                .unwrap()
-                .clone()
+            *norm.first().unwrap().clone()
         } else {
             Expr::Or(norm)
         }
@@ -121,10 +138,7 @@ impl Expr {
 
     pub fn subexprs(&self) -> Set<&Expr> {
         log::trace!("[subexprs] {self:?}");
-        self.lineage()
-            .iter()
-            .map(|lineage| lineage[0])
-            .collect()
+        self.lineage().iter().map(|lineage| lineage[0]).collect()
     }
 
     pub fn lineage(&self) -> Set<Vec<&Expr>> {
