@@ -1,4 +1,4 @@
-use coalescence::{expression::Expr, parser::Parseable, proof::Proveable};
+use coalescence::{expression::Expr, parseable::Parseable, proveable::Proveable};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();

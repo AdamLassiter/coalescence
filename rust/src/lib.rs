@@ -7,20 +7,13 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-pub mod coalescence;
+pub mod coalesceable;
 pub mod expression;
-pub mod parser;
-pub mod proof;
+pub mod parseable;
+pub mod proveable;
 
-pub(crate) type Set<T> = BTreeSet<T>;
-pub(crate) type SSet<T> = Set<Set<T>>;
-pub(crate) type Map<K, V> = BTreeMap<K, V>;
-pub(crate) type Node = usize;
-pub(crate) type Edge = usize;
-
-#[allow(dead_code)]
-pub (crate) fn log_init() {
-    let _ = env_logger::builder()
-        .is_test(true)
-        .try_init();
-}
+pub type Set<T> = BTreeSet<T>;
+pub type SSet<T> = Set<Set<T>>;
+pub type Map<K, V> = BTreeMap<K, V>;
+pub type Node = usize;
+pub type Edge = usize;

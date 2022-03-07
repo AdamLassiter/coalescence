@@ -1,4 +1,4 @@
-use crate::{coalescence::Coalesceable, expression::Expr, Edge, Map, Node, SSet, Set};
+use crate::{coalesceable::Coalesceable, expression::Expr, Edge, Map, Node, SSet, Set};
 
 #[derive(Debug)]
 pub struct Proof<T> {
@@ -172,73 +172,5 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
         log::trace!("[is-edge] not edge");
         false
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::log_init;
-    use crate::parser::Parseable;
-
-    use super::*;
-
-    #[test]
-    fn proof_axiom() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("a > a")?.normal();
-        let proof = expr.proof()?;
-        proof.verify()?;
-        Ok(())
-    }
-
-    #[test]
-    fn proof_duplicate_axiom() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("(a > a) & (a > a)")?.normal();
-        let proof = expr.proof()?;
-        proof.verify()?;
-        Ok(())
-    }
-
-    #[test]
-    fn proof_two_axioms() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("(a > a) & (b > b)")?.normal();
-        let proof = expr.proof()?;
-        proof.verify()?;
-        Ok(())
-    }
-
-    #[test]
-    fn proof_second_axiom() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b) | (~a & ~b)")?.normal();
-        let proof = expr.proof()?;
-        proof.verify()?;
-        Ok(())
-    }
-
-    #[test]
-    fn proof_second_axiom_invalid() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
-        let proof = expr.proof();
-        let _ = proof.unwrap_err();
-        Ok(())
-    }
-
-    // #[test]
-    fn proof_fourth_axiom() -> Result<(), String> {
-        log_init();
-
-        let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
-        let proof = expr.proof()?;
-        proof.verify()?;
-        Ok(())
     }
 }
