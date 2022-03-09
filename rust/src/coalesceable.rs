@@ -96,6 +96,7 @@ impl Coalesceable for Expr {
         tokens.iter()
             .flat_map(|token| token.iter()
                 .map(move |expr| (token, expr)))
+            // TODO: This could be... better in some way?
             .flat_map(|(token, expr)| {
                 self.lineage().to_owned().iter()
                     .filter_map(move |lineage| {

@@ -14,19 +14,20 @@ pub enum Expr {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::And(exprs) => f.write_str(
+            Self::And(exprs) | Self::Or(exprs) => f.write_str(
                 &exprs
                     .iter()
-                    .map(|expr| format!("{expr:?}"))
+                    .map(|expr| match *expr.to_owned() {
+                        Self::And(_) | Self::Or(_) => format!("({expr:?})"),
+                        _ => format!("{expr:?}"),
+                    })
                     .collect::<Vec<_>>()
-                    .join(" & "),
-            ),
-            Self::Or(exprs) => f.write_str(
-                &exprs
-                    .iter()
-                    .map(|expr| format!("{expr:?}"))
-                    .collect::<Vec<_>>()
-                    .join(" | "),
+                    .join(match self {
+                        Self::And(_) => " & ",
+                        Self::Or(_) => " | ",
+                        _ => panic!("Impossible match arm"),
+                    }
+                ),
             ),
             Self::Not(expr) => f.write_fmt(format_args!("~({expr:?})")),
             Self::Atom(name) => f.write_fmt(format_args!("{name}")),
@@ -142,7 +143,7 @@ impl Expr {
     }
 
     pub fn lineage(&self) -> Set<Vec<&Expr>> {
-        // log::trace!("[lineaged-subexprs] {self:?}");
+        log::trace!("[lineaged-subexprs] {self:?}");
         match self {
             Expr::And(exprs) | Expr::Or(exprs) => exprs
                 .iter()

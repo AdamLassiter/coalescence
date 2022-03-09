@@ -1,5 +1,6 @@
 use coalescence::{coalesceable::*, expression::Expr, parseable::Parseable};
 
+// TODO: Assert against sequents generated through coalescence
 use pretty_assertions::assert_eq;
 
 fn log_init() {

@@ -55,8 +55,7 @@ fn proof_second_axiom() -> Result<(), String> {
 }
 
 #[test]
-#[ignore]
-fn proof_second_axiom_invalid() -> Result<(), String> {
+#[ignore]fn proof_second_axiom_invalid() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
