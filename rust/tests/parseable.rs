@@ -10,14 +10,11 @@ fn log_init() {
 fn parse_atom() -> Result<(), String> {
     log_init();
 
-    assert_eq!(Expr::parse("a")?,
-        Expr::Atom("a".to_string()));
+    assert_eq!(Expr::parse("a")?, Expr::Atom("a".to_string()));
 
-    assert_eq!(Expr::parse("alpha")?,
-        Expr::Atom("alpha".to_string()));
+    assert_eq!(Expr::parse("alpha")?, Expr::Atom("alpha".to_string()));
 
-    assert_eq!(Expr::parse("~a")?,
-        Expr::not(Expr::Atom("a".to_string())));
+    assert_eq!(Expr::parse("~a")?, Expr::not(Expr::Atom("a".to_string())));
 
     Ok(())
 }
@@ -26,15 +23,15 @@ fn parse_atom() -> Result<(), String> {
 fn parse_operator() -> Result<(), String> {
     log_init();
 
-    assert_eq!(Expr::parse("a & b")?,
-        Expr::and(&[
-            Expr::Atom("a".to_string()),
-            Expr::Atom("b".to_string())]));
+    assert_eq!(
+        Expr::parse("a & b")?,
+        Expr::and(&[Expr::Atom("a".to_string()), Expr::Atom("b".to_string())])
+    );
 
-    assert_eq!(Expr::parse("a | b")?,
-        Expr::or(&[
-            Expr::Atom("a".to_string()),
-            Expr::Atom("b".to_string())]));
+    assert_eq!(
+        Expr::parse("a | b")?,
+        Expr::or(&[Expr::Atom("a".to_string()), Expr::Atom("b".to_string())])
+    );
 
     Ok(())
 }
@@ -43,19 +40,27 @@ fn parse_operator() -> Result<(), String> {
 fn parse_syntactic_sugar() -> Result<(), String> {
     log_init();
 
-    assert_eq!(Expr::parse("a > b")?,
+    assert_eq!(
+        Expr::parse("a > b")?,
         Expr::or(&[
             Expr::not(Expr::Atom("a".to_string())),
-            Expr::Atom("b".to_string())]));
+            Expr::Atom("b".to_string())
+        ])
+    );
 
-    assert_eq!(Expr::parse("a = b")?,
+    assert_eq!(
+        Expr::parse("a = b")?,
         Expr::and(&[
             Expr::or(&[
                 Expr::not(Expr::Atom("a".to_string())),
-                Expr::Atom("b".to_string())]),
+                Expr::Atom("b".to_string())
+            ]),
             Expr::or(&[
                 Expr::not(Expr::Atom("b".to_string())),
-                Expr::Atom("a".to_string())])]));
+                Expr::Atom("a".to_string())
+            ])
+        ])
+    );
 
     Ok(())
 }
@@ -64,19 +69,27 @@ fn parse_syntactic_sugar() -> Result<(), String> {
 fn parse_braces() -> Result<(), String> {
     log_init();
 
-    assert_eq!(Expr::parse("~(a | b)")?,
+    assert_eq!(
+        Expr::parse("~(a | b)")?,
         Expr::not(Expr::or(&[
             Expr::Atom("a".to_string()),
-            Expr::Atom("b".to_string())])));
+            Expr::Atom("b".to_string())
+        ]))
+    );
 
-    assert_eq!(Expr::parse("a = b")?,
+    assert_eq!(
+        Expr::parse("a = b")?,
         Expr::and(&[
             Expr::or(&[
                 Expr::not(Expr::Atom("a".to_string())),
-                Expr::Atom("b".to_string())]),
+                Expr::Atom("b".to_string())
+            ]),
             Expr::or(&[
                 Expr::not(Expr::Atom("b".to_string())),
-                Expr::Atom("a".to_string())])]));
+                Expr::Atom("a".to_string())
+            ])
+        ])
+    );
 
     Ok(())
 }

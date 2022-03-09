@@ -56,14 +56,14 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
     fn walk_to_axiom(&self, node: Node) -> Result<(), String> {
         log::trace!("[walk-to-axiom] walked to {node:?}");
-        let edges: Vec<Node> = self
+        let edges = self
             .edges
             .iter()
             .filter_map(|edge| match edge {
                 (&(from, to), _) if from == self.node_idx => Some(to),
                 _ => None,
             })
-            .collect();
+            .collect::<Vec<_>>();
         if edges.is_empty() {
             log::trace!("[walk-to-axiom] edges empty at {node:?}");
             let place = self

@@ -142,7 +142,7 @@ impl Expr {
     }
 
     pub fn lineage(&self) -> Set<Vec<&Expr>> {
-        log::trace!("[lineaged-subexprs] {self:?}");
+        // log::trace!("[lineaged-subexprs] {self:?}");
         match self {
             Expr::And(exprs) | Expr::Or(exprs) => exprs
                 .iter()

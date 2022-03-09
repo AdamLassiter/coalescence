@@ -27,7 +27,7 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
             log::trace!("[coalesce] {self:?} not in {tokens:?}");
             if old_tokens == tokens {
                 let current_dim = tokens.iter().map(Set::len).fold(0, |a, b| a.max(b));
-                if current_dim < Self::dim_bound(self) {
+                if current_dim <= Self::dim_bound(self) {
                     tokens = Self::project(self, tokens);
                 } else {
                     return None;
@@ -49,11 +49,12 @@ impl Coalesceable for Expr {
     fn is_axiom(&self) -> bool {
         log::trace!("[is-axiom] {self:?}");
         match self.normal() {
-            Expr::Or(subexprs) => {
-                subexprs.first()
-                    .map(|subexpr| subexprs.contains(&subexpr.inverse().normal()) && subexprs.len() == 2)
-                    .unwrap_or(false)
-            },
+            Expr::Or(subexprs) => subexprs
+                .first()
+                .map(|subexpr| {
+                    subexprs.contains(&subexpr.inverse().normal()) && subexprs.len() == 2
+                })
+                .unwrap_or(false),
             _ => false,
         }
     }
@@ -69,7 +70,7 @@ impl Coalesceable for Expr {
 
     fn dim_bound(&self) -> usize {
         log::trace!("[dim-bound] {self:?}");
-        self.names().len() + 1
+        self.atoms().len()
     }
 
     fn spawn(&self) -> SSet<Self> {
@@ -85,13 +86,14 @@ impl Coalesceable for Expr {
                     None
                 }
             })
+            .inspect(|axiom| log::debug!("∅ =T> {axiom:?}"))
             .collect()
     }
 
-    fn fire(&self, tokens: SSet<Self>) -> SSet<Self> {
-        log::trace!("[fire] {self:?} with {tokens:?}");
-        let tokens_clone = tokens.clone();
-        tokens_clone.iter()
+    fn fire(&self, old_tokens: SSet<Self>) -> SSet<Self> {
+        log::trace!("[fire] {self:?} with {old_tokens:?}");
+        let tokens = old_tokens.clone();
+        tokens.iter()
             .flat_map(|token| token.iter()
                 .map(move |expr| (token, expr)))
             .flat_map(|(token, expr)| {
@@ -106,36 +108,56 @@ impl Coalesceable for Expr {
                     .collect::<Set<(Set<Self>, Expr, Vec<&Expr>)>>()
             })
             .filter_map(|(token, expr, lineage)| {
-                log::trace!("[fire] token {token:?} check expr {expr:?} with lineage {lineage:?}");
+                log::trace!("[fire] token {token:?} inspecting {expr:?} with lineage {lineage:?}");
+                // Is this the root?
                 if lineage.len() <= 1 {
                     return None;
                 }
-                let mut partial_token = token.to_owned();
-                partial_token.remove(&expr);
-                let parent = lineage[1];
 
-                let siblings = match parent {
-                    Expr::And(exprs) | Expr::Or(exprs) => exprs,
-                    _ => panic!("Expression {expr:?} has lineage {lineage:?}, but parent {parent:?} has no children!"),
+                // If not the root, then there exists a parent of this expression
+                let parent_expr = lineage[1];
+
+                // There's a constructor of sibling places
+                let sibling_token_fn = |sibling| {
+                    let mut partial = token.to_owned();
+                    partial.remove(&expr);
+                    partial.insert(sibling);
+                    partial
                 };
-                let sibling_predicates = siblings.iter()
-                    .map(|sibling| {
-                        let mut partial_sibling = partial_token.to_owned();
-                        partial_sibling.insert(*sibling.to_owned());
-                        tokens_clone.contains(&partial_sibling)
-                    })
-                    .collect::<Vec<bool>>();
+                // There's also a place for the parent
+                let parent_token = sibling_token_fn(parent_expr.to_owned());
 
-                let mut firing = partial_token.to_owned();
-                firing.insert(parent.to_owned());
-                log::trace!("[fire] firing predicates parent {parent:?} {}", sibling_predicates.len());
-                match (parent, sibling_predicates.len()) {
-                    (Expr::And(_), x) if x == siblings.len() => Some(firing),
-                    (Expr::Or(_), x) if x > 0 => Some(firing),
+                // Short-circuit if we have already deduced the parent
+                if tokens.contains(&parent_token) {
+                    return None;
+                }
+
+                // If there's a parent, then this expr has siblings
+                let children = match parent_expr {
+                    Expr::And(exprs) | Expr::Or(exprs) => exprs.iter()
+                        .map(|sibling| sibling_token_fn(*sibling.to_owned()))
+                        .collect::<SSet<_>>(),
+                    _ => panic!("Expression {expr:?} has lineage {lineage:?}, but parent {parent_expr:?} has no children!"),
+                };
+
+                log::trace!("[fire] given transition {expr:?} to {parent_expr:?}");
+                log::trace!("[fire] is transition {token:?} to {parent_token:?} proveable");
+                log::trace!("[fire] given subset {children:?} of {tokens:?}");
+
+                // Is the parent operator satisfied appropriately for its children?
+                match parent_expr {
+                    Expr::And(_) if children.is_subset(&tokens)  => {
+                        log::debug!("{children:?} =&> {parent_token:?}");
+                        Some(parent_token)
+                    },
+                    Expr::Or(_) if !children.is_disjoint(&tokens) => {
+                        log::debug!("{children:?} =|> {parent_token:?}");
+                        Some(parent_token)
+                    },
                     _ => None,
                 }
             })
-            .chain(tokens)
+            .chain(old_tokens)
             .collect()
     }
 
@@ -146,12 +168,20 @@ impl Coalesceable for Expr {
             .flat_map(|token| {
                 self.subexprs()
                     .iter()
-                    .map(|&subexpr| {
-                        let mut projection = token.to_owned();
-                        projection.insert(subexpr.to_owned());
-                        projection
+                    .filter_map(|&subexpr| {
+                        let projection = {
+                            let mut partial = token.to_owned();
+                            partial.insert(subexpr.to_owned());
+                            partial
+                        };
+                        if !tokens.contains(&projection) {
+                            log::debug!("{token:?} =%> {projection:?}");
+                            Some(projection)
+                        } else {
+                            None
+                        }
                     })
-                    .collect::<SSet<Self>>()
+                    .collect::<SSet<_>>()
             })
             .collect()
     }

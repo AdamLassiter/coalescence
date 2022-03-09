@@ -89,10 +89,7 @@ fn inverse() -> Result<(), String> {
         Expr::parse("~a")?.normal()
     );
 
-    assert_eq!(
-        Expr::parse("~a")?.inverse().normal(),
-        Expr::parse("a")?
-    );
+    assert_eq!(Expr::parse("~a")?.inverse().normal(), Expr::parse("a")?);
 
     assert_eq!(
         Expr::parse("~a | ~b")?.inverse().normal(),

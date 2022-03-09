@@ -1,4 +1,4 @@
-use coalescence::{expression::Expr, parseable::Parseable, coalesceable::*};
+use coalescence::{coalesceable::*, expression::Expr, parseable::Parseable};
 
 use pretty_assertions::assert_eq;
 
@@ -11,7 +11,7 @@ fn coalesce_axiom() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("a > a")?.normal();
-    let _ = expr.coalesce().unwrap();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }
 
@@ -20,7 +20,7 @@ fn coalesce_duplicate_axiom() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a > a) & (a > a)")?.normal();
-    let _ = expr.coalesce().unwrap();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }
 
@@ -29,7 +29,7 @@ fn coalesce_two_axioms() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a > a) & (b > b)")?.normal();
-    let _ = expr.coalesce().unwrap();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }
 
@@ -38,7 +38,7 @@ fn coalesce_second_axiom() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b) | (~a & ~b)")?.normal();
-    let _ = expr.coalesce().unwrap();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }
 
@@ -47,8 +47,10 @@ fn coalesce_second_axiom_invalid() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a & b) | (~a & b) | (a & ~b)")?.normal();
-    let coalesce = expr.coalesce();
-    assert_eq!(coalesce, None);
+    let _ = expr
+        .coalesce()
+        .ok_or("Not coalesceable")
+        .expect_err("False statement coalesceable");
     Ok(())
 }
 
@@ -58,6 +60,6 @@ fn coalesce_fourth_axiom() -> Result<(), String> {
     log_init();
 
     let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
-    let _ = expr.coalesce().unwrap();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }
