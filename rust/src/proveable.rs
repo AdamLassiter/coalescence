@@ -60,7 +60,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
             .edges
             .iter()
             .filter_map(|edge| match edge {
-                (&(from, to), _) if from == self.node_idx => Some(to),
+                (&(from, to), _) if from == node => Some(to),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -101,6 +101,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
         self.backtrack_dag(&self.root.clone(), tokens);
     }
 
+    // TODO: Don't produce acyclic graphs, probably by tracking depth
     fn backtrack_dag(&mut self, place: &Set<U>, tokens: &SSet<U>) {
         log::trace!("[backtrack] at place {place:?} with tokens {tokens:?}");
         tokens
@@ -109,7 +110,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
             .for_each(|sub_place| {
                 let start = self.node(place);
                 let end = self.node(sub_place);
-                if let Some(_edge) = self.edge(&(start, end)) {
+                if self.edge(&(start, end)).is_some() {
                     log::trace!("[backtrack] from {place:?} to {sub_place:?}");
                     self.backtrack_dag(sub_place, tokens);
                 }
@@ -128,18 +129,33 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
     fn edge(&mut self, edge: &(Node, Node)) -> Option<Edge> {
         log::trace!("[edge] {edge:?}");
-        self.edges.get(edge).map(|_| None).unwrap_or_else(|| {
-            let idx = self.edge_idx;
-            self.edges.insert(edge.clone(), idx);
-            self.edge_idx += 1;
-            Some(idx)
-        })
+        self.edges
+            .get(edge)
+            .map(|idx| {
+                log::trace!("[edge] already inserted at {idx:?}");
+                None
+            })
+            .unwrap_or_else(|| {
+                self.edges
+                    .get(&(edge.1, edge.0))
+                    .map(|idx| {
+                        log::trace!("[edge] reverse already inserted at {idx:?}");
+                        None
+                    })
+                    .unwrap_or_else(|| {
+                        let idx = self.edge_idx;
+                        log::trace!("[edge] new insert at {idx:?}");
+                        self.edges.insert(edge.clone(), idx);
+                        self.edge_idx += 1;
+                        Some(idx)
+                    })
+            })
     }
 
     fn is_edge(start: &Set<U>, end: &Set<U>) -> bool {
         log::trace!("[is-edge] from {start:?} to {end:?}");
         // Weakening: S => S, p
-        if start.is_superset(end) {
+        if start.is_superset(end) && !start.is_subset(end) {
             log::trace!("[is-edge] is edge by weakening rule");
             return true;
         }
@@ -147,7 +163,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
         let parent_diff = start.difference(end).collect::<Set<&U>>();
         let child_diff = end.difference(start).collect::<Set<&U>>();
 
-        // BinaryOp: S, c => S, p  <=>  c in p
+        // BinaryOp: S, c => S, p  <=>  c -> p
         if parent_diff.len() == 1 && child_diff.len() == 1 {
             let &parent = parent_diff.first().unwrap();
             let &child = child_diff.first().unwrap();
@@ -156,7 +172,9 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 return true;
             }
         }
-        // Contraction: S, c => S  <=>  p in S : c in p
+
+        // Contraction: S, c => S  <=>  exists p in S : c -> p
+        // [Degenerate case of BinaryOp]
         if parent_diff.len() <= 1 && child_diff.len() == 1 {
             let &child = child_diff.first().unwrap();
             if start
