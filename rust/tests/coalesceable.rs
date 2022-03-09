@@ -56,11 +56,20 @@ fn coalesce_second_axiom_invalid() -> Result<(), String> {
 }
 
 #[test]
+fn coalesce_third_axiom() -> Result<(), String> {
+    log_init();
+
+    let expr = Expr::parse("(a & b & c) | (a & ~b & c) | (~a & b & c) | (~a & ~b & c) | (a & b & ~c) | (a & ~b & ~c) | (~a & b & ~c) | (~a & ~b & ~c)")?.normal();
+    let _ = expr.coalesce().ok_or("Not coalesceable")?;
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn coalesce_fourth_axiom() -> Result<(), String> {
     log_init();
 
-    let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
+    let expr = Expr::parse("(a & b & c) | (a & ~b & c) | (~a & b & c) | (~a & ~b & c) | (a & b & ~c) | (a & ~b & ~c) | (~a & b & ~c) | (~a & ~b & ~c) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
     let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }

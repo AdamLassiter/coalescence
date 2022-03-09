@@ -3,8 +3,6 @@ use crate::{expression::Expr, SSet, Set};
 pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
     fn axiom_set(&self) -> Set<Self>;
 
-    fn is_axiom(&self) -> bool;
-
     fn children(&self) -> Set<Box<Self>>;
 
     fn dim_bound(&self) -> usize;
@@ -44,19 +42,6 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
 impl Coalesceable for Expr {
     fn axiom_set(&self) -> Set<Self> {
         Set::from([self.clone(), self.inverse().normal()])
-    }
-
-    fn is_axiom(&self) -> bool {
-        log::trace!("[is-axiom] {self:?}");
-        match self.normal() {
-            Expr::Or(subexprs) => subexprs
-                .first()
-                .map(|subexpr| {
-                    subexprs.contains(&subexpr.inverse().normal()) && subexprs.len() == 2
-                })
-                .unwrap_or(false),
-            _ => false,
-        }
     }
 
     fn children(&self) -> Set<Box<Self>> {

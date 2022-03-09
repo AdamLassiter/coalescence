@@ -56,6 +56,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
     fn walk_to_axiom(&self, node: Node) -> Result<(), String> {
         log::trace!("[walk-to-axiom] walked to {node:?}");
+
         let edges = self
             .edges
             .iter()
@@ -64,17 +65,22 @@ impl<U: Coalesceable> Proof<Set<U>> {
                 _ => None,
             })
             .collect::<Vec<_>>();
+
         if edges.is_empty() {
             log::trace!("[walk-to-axiom] edges empty at {node:?}");
+
             let place = self
                 .nodes
                 .iter()
                 .find_map(|(key, &val)| if val == node { Some(key) } else { None })
                 .ok_or(format!("Node index {node:?} is not in nodes-map"))?;
+
             let is_axiom = place
                 .first()
                 .ok_or("Node index {node:?} is an empty place")?
-                .is_axiom();
+                .axiom_set()
+                .eq(place);
+
             if is_axiom {
                 Ok(())
             } else {
@@ -84,6 +90,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
             }
         } else {
             log::trace!("[walk-to-axiom] traversing edges {edges:?} at {node:?}");
+
             edges
                 .iter()
                 .map(|&next| self.walk_to_axiom(next))
@@ -98,21 +105,29 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
     fn backtrack(&mut self, tokens: &SSet<U>) {
         log::trace!("[backtrack] {tokens:?}");
-        self.backtrack_dag(&self.root.clone(), tokens);
+        self.backtrack_dag(vec![self.root.clone()], tokens);
     }
 
     // TODO: Don't produce acyclic graphs, probably by tracking depth
-    fn backtrack_dag(&mut self, place: &Set<U>, tokens: &SSet<U>) {
+    fn backtrack_dag(&mut self, path: Vec<Set<U>>, tokens: &SSet<U>) {
+        let place = path.last().unwrap();
         log::trace!("[backtrack] at place {place:?} with tokens {tokens:?}");
+
         tokens
             .iter()
-            .filter(|&sub_place| Self::is_edge(&place, sub_place))
-            .for_each(|sub_place| {
+            .filter(|&next_place| !path.contains(next_place))
+            .filter(|&next_place| Self::is_edge(&place, next_place))
+            .for_each(|next_place| {
                 let start = self.node(place);
-                let end = self.node(sub_place);
+                let end = self.node(next_place);
                 if self.edge(&(start, end)).is_some() {
-                    log::trace!("[backtrack] from {place:?} to {sub_place:?}");
-                    self.backtrack_dag(sub_place, tokens);
+                    log::trace!("[backtrack] from {place:?} to {next_place:?}");
+                    let next_path = {
+                        let mut partial = path.clone();
+                        partial.push(next_place.to_owned());
+                        partial
+                    };
+                    self.backtrack_dag(next_path, tokens);
                 }
             });
     }
@@ -154,6 +169,7 @@ impl<U: Coalesceable> Proof<Set<U>> {
 
     fn is_edge(start: &Set<U>, end: &Set<U>) -> bool {
         log::trace!("[is-edge] from {start:?} to {end:?}");
+
         // Weakening: S => S, p
         if start.is_superset(end) && !start.is_subset(end) {
             log::trace!("[is-edge] is edge by weakening rule");
