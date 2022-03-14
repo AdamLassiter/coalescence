@@ -6,10 +6,32 @@ edition = "2021"
 [dependencies]
 log = { version = "~0.4" }
 
-[[example]]
-name = "main"
-
 [dev-dependencies]
 rprompt = { version = "~1.0" }
 env_logger = { version = "~0.9" }
 pretty_assertions = { version = "~1.0" }
+
+[profile.dev]
+debug = 1
+panic = "unwind"
+incremental = true
+
+[profile.test]
+debug = 2
+panic = "unwind"
+incremental = true
+
+[profile.bench]
+debug = 1
+opt-level = 3
+lto = "fat"
+incremental = true
+
+[profile.release]
+debug = 0
+opt-level = 3
+lto = "thin"
+incremental = true
+
+[[example]]
+name = "main"

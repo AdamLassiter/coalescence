@@ -1,3 +1,5 @@
+#![feature(test)]
+
 use coalescence::{coalesceable::*, expression::Expr, parseable::Parseable};
 
 // TODO: Assert against sequents generated through coalescence
@@ -65,11 +67,10 @@ fn coalesce_third_axiom() -> Result<(), String> {
 }
 
 #[test]
-#[ignore]
-fn coalesce_fourth_axiom() -> Result<(), String> {
+pub fn coalesce_fourth_axiom() -> Result<(), String> {
     log_init();
 
-    let expr = Expr::parse("(a & b & c) | (a & ~b & c) | (~a & b & c) | (~a & ~b & c) | (a & b & ~c) | (a & ~b & ~c) | (~a & b & ~c) | (~a & ~b & ~c) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
+    let expr = Expr::parse("(a & b & c & d) | (a & ~b & c & d) | (~a & b & c & d) | (~a & ~b & c & d) | (a & b & ~c & d) | (a & ~b & ~c & d) | (~a & b & ~c & d) | (~a & ~b & ~c & d) | (a & b & c & ~d) | (a & ~b & c & ~d) | (~a & b & c & ~d) | (~a & ~b & c & ~d) | (a & b & ~c & ~d) | (a & ~b & ~c & ~d) | (~a & b & ~c & ~d) | (~a & ~b & ~c & ~d)")?.normal();
     let _ = expr.coalesce().ok_or("Not coalesceable")?;
     Ok(())
 }

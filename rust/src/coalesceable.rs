@@ -9,9 +9,11 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
 
     fn spawn(&self) -> SSet<Self>;
 
-    fn fire(&self, tokens: SSet<Self>) -> SSet<Self>;
+    fn fire(&self, tokens: &SSet<Self>) -> SSet<Self>;
+    fn sparse_fire(&self, tokens: &SSet<Self>) -> SSet<Self>;
 
-    fn project(&self, tokens: SSet<Self>) -> SSet<Self>;
+    fn project(&self, tokens: &SSet<Self>) -> SSet<Self>;
+    fn sparse_project(&self, tokens: &SSet<Self>) -> SSet<Self>;
 
     fn coalesce(&self) -> Option<SSet<Self>> {
         log::trace!("[coalesce] {self:?}");
@@ -26,13 +28,13 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
             if old_tokens == tokens {
                 let current_dim = tokens.iter().map(Set::len).fold(0, |a, b| a.max(b));
                 if current_dim <= Self::dim_bound(self) {
-                    tokens = Self::project(self, tokens);
+                    tokens = Self::sparse_project(self, &tokens);
                 } else {
                     return None;
                 }
             }
             old_tokens = tokens.clone();
-            tokens = Self::fire(self, tokens);
+            tokens = Self::sparse_fire(self, &tokens);
         }
 
         Some(tokens)
@@ -75,7 +77,7 @@ impl Coalesceable for Expr {
             .collect()
     }
 
-    fn fire(&self, old_tokens: SSet<Self>) -> SSet<Self> {
+    fn fire(&self, old_tokens: &SSet<Self>) -> SSet<Self> {
         log::trace!("[fire] {self:?} with {old_tokens:?}");
         let tokens = old_tokens.clone();
         tokens.iter()
@@ -91,7 +93,7 @@ impl Coalesceable for Expr {
                             None
                         }
                     })
-                    .collect::<Set<(Set<Self>, Expr, Vec<&Expr>)>>()
+                    .collect::<Set<_>>()
             })
             .filter_map(|(token, expr, lineage)| {
                 log::trace!("[fire] token {token:?} inspecting {expr:?} with lineage {lineage:?}");
@@ -143,11 +145,42 @@ impl Coalesceable for Expr {
                     _ => None,
                 }
             })
-            .chain(old_tokens)
+            .chain(old_tokens.clone())
             .collect()
     }
 
-    fn project(&self, tokens: SSet<Self>) -> SSet<Self> {
+    fn sparse_fire(&self, old_tokens: &SSet<Self>) -> SSet<Self> {
+        log::trace!("[sparse-fire] {self:?} with {old_tokens:?}");
+        let mut firing = self.fire(&old_tokens);
+        old_tokens.iter().for_each(|token| {
+            if token.iter().all(|expr| {
+                let parent = self.lineage()
+                    .iter()
+                    .find_map(move |lineage| if lineage[0] == expr {
+                        lineage.get(1).map(|x| x.clone())
+                    } else {
+                        None
+                    });
+                parent.map(|parent| firing.contains(token)
+                    && firing.contains(&{
+                        let mut partial = token.clone();
+                        partial.insert(parent.clone());
+                        partial
+                    })
+                    && firing.contains(&{
+                        let mut partial = token.clone();
+                        partial.remove(expr);
+                        partial.insert(parent.clone());
+                        partial
+                    })).unwrap_or(false)
+            }) {
+                firing.remove(token);
+            }
+        });
+        firing
+    }
+
+    fn project(&self, tokens: &SSet<Self>) -> SSet<Self> {
         log::trace!("[project] {self:?} with {tokens:?}");
         tokens
             .iter()
@@ -170,5 +203,10 @@ impl Coalesceable for Expr {
                     .collect::<SSet<_>>()
             })
             .collect()
+    }
+
+    fn sparse_project(&self, tokens: &SSet<Self>) -> SSet<Self> {
+        log::trace!("[sparse-project] {self:?} with {tokens:?}");
+        self.project(tokens)
     }
 }

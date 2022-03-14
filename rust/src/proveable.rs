@@ -34,13 +34,13 @@ impl Proveable for Expr {
     }
 }
 
-impl<U: Coalesceable> Proof<Set<U>> {
+impl<U: Coalesceable + std::fmt::Debug> Proof<Set<U>> {
     pub fn new(root: &U) -> Self {
         Self {
             root: Set::from([root.clone()]),
-            node_idx: 0,
+            node_idx: 0.into(),
             nodes: Map::new(),
-            edge_idx: 0,
+            edge_idx: 0.into(),
             edges: Map::new(),
         }
     }
