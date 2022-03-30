@@ -1,4 +1,6 @@
-use crate::{expression::Expr, SSet, Set};
+use btree_dag::{AddEdge, AddVertex};
+
+use crate::{expression::Expr, Dag, Set};
 
 pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
     fn axiom_set(&self) -> Set<Self>;
@@ -7,17 +9,17 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
 
     fn dim_bound(&self) -> usize;
 
-    fn spawn(&self) -> SSet<Self>;
+    fn spawn(&self, proof: &mut Dag<Set<Self>>) -> Set<Set<Self>>;
 
-    fn fire(&self, tokens: &SSet<Self>) -> SSet<Self>;
-    fn sparse_fire(&self, tokens: &SSet<Self>) -> SSet<Self>;
+    fn fire(&self, proof: &mut Dag<Set<Self>>, tokens: &Set<Set<Self>>) -> Set<Set<Self>>;
 
-    fn project(&self, tokens: &SSet<Self>) -> SSet<Self>;
-    fn sparse_project(&self, tokens: &SSet<Self>) -> SSet<Self>;
+    fn project(&self, proof: &mut Dag<Set<Self>>, tokens: &Set<Set<Self>>) -> Set<Set<Self>>;
 
-    fn coalesce(&self) -> Option<SSet<Self>> {
+    fn coalesce(&self) -> Option<(Set<Set<Self>>, Dag<Set<Self>>)> {
         log::trace!("[coalesce] {self:?}");
-        let mut tokens = Self::spawn(self);
+        let mut proof = Dag::<Set<Self>>::new();
+
+        let mut tokens = Self::spawn(self, &mut proof);
         if tokens.is_empty() {
             return None;
         }
@@ -28,16 +30,16 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
             if old_tokens == tokens {
                 let current_dim = tokens.iter().map(Set::len).fold(0, |a, b| a.max(b));
                 if current_dim <= Self::dim_bound(self) {
-                    tokens = Self::sparse_project(self, &tokens);
+                    tokens = Self::project(self, &mut proof, &tokens);
                 } else {
                     return None;
                 }
             }
             old_tokens = tokens.clone();
-            tokens = Self::sparse_fire(self, &tokens);
+            tokens = Self::fire(self, &mut proof, &tokens);
         }
 
-        Some(tokens)
+        Some((tokens, proof))
     }
 }
 
@@ -60,24 +62,25 @@ impl Coalesceable for Expr {
         self.atoms().len()
     }
 
-    fn spawn(&self) -> SSet<Self> {
+    fn spawn(&self, proof: &mut Dag<Set<Self>>) -> Set<Set<Self>> {
         log::trace!("[spawn] {self:?}");
         let atoms = self.atoms();
         atoms
             .iter()
             .filter_map(|&atom| {
-                let axiom_guess = atom.axiom_set();
-                if axiom_guess.iter().all(|atom| atoms.contains(atom)) {
-                    Some(axiom_guess)
+                let axiom = atom.axiom_set();
+                if axiom.iter().all(|atom| atoms.contains(atom)) {
+                    log::debug!("∅ =T> {axiom:?}");
+                    proof.add_vertex(axiom.clone());
+                    Some(axiom)
                 } else {
                     None
                 }
             })
-            .inspect(|axiom| log::debug!("∅ =T> {axiom:?}"))
             .collect()
     }
 
-    fn fire(&self, old_tokens: &SSet<Self>) -> SSet<Self> {
+    fn fire(&self, proof: &mut Dag<Set<Self>>, old_tokens: &Set<Set<Self>>) -> Set<Set<Self>> {
         log::trace!("[fire] {self:?} with {old_tokens:?}");
         let tokens = old_tokens.clone();
         tokens.iter()
@@ -124,7 +127,7 @@ impl Coalesceable for Expr {
                 let children = match parent_expr {
                     Expr::And(exprs) | Expr::Or(exprs) => exprs.iter()
                         .map(|sibling| sibling_token_fn(*sibling.to_owned()))
-                        .collect::<SSet<_>>(),
+                        .collect::<Set<_>>(),
                     _ => panic!("Expression {expr:?} has lineage {lineage:?}, but parent {parent_expr:?} has no children!"),
                 };
 
@@ -136,10 +139,17 @@ impl Coalesceable for Expr {
                 match parent_expr {
                     Expr::And(_) if children.is_subset(&tokens)  => {
                         log::debug!("{children:?} =&> {parent_token:?}");
+                        proof.add_vertex(parent_token.clone());
+                        children.iter().for_each(|child| {
+                            proof.add_vertex(child.clone());
+                            proof.add_edge(child.clone(), parent_token.clone()).unwrap();
+                        });
                         Some(parent_token)
                     },
                     Expr::Or(_) if !children.is_disjoint(&tokens) => {
                         log::debug!("{children:?} =|> {parent_token:?}");
+                        proof.add_vertex(parent_token.clone());
+                        proof.add_edge(token.clone(), parent_token.clone()).unwrap();
                         Some(parent_token)
                     },
                     _ => None,
@@ -149,38 +159,7 @@ impl Coalesceable for Expr {
             .collect()
     }
 
-    fn sparse_fire(&self, old_tokens: &SSet<Self>) -> SSet<Self> {
-        log::trace!("[sparse-fire] {self:?} with {old_tokens:?}");
-        let mut firing = self.fire(&old_tokens);
-        old_tokens.iter().for_each(|token| {
-            if token.iter().all(|expr| {
-                let parent = self.lineage()
-                    .iter()
-                    .find_map(move |lineage| if lineage[0] == expr {
-                        lineage.get(1).map(|x| x.clone())
-                    } else {
-                        None
-                    });
-                parent.map(|parent| firing.contains(token)
-                    && firing.contains(&{
-                        let mut partial = token.clone();
-                        partial.insert(parent.clone());
-                        partial
-                    })
-                    && firing.contains(&{
-                        let mut partial = token.clone();
-                        partial.remove(expr);
-                        partial.insert(parent.clone());
-                        partial
-                    })).unwrap_or(false)
-            }) {
-                firing.remove(token);
-            }
-        });
-        firing
-    }
-
-    fn project(&self, tokens: &SSet<Self>) -> SSet<Self> {
+    fn project(&self, proof: &mut Dag<Set<Self>>, tokens: &Set<Set<Self>>) -> Set<Set<Self>> {
         log::trace!("[project] {self:?} with {tokens:?}");
         tokens
             .iter()
@@ -195,18 +174,15 @@ impl Coalesceable for Expr {
                         };
                         if !tokens.contains(&projection) {
                             log::debug!("{token:?} =%> {projection:?}");
+                            proof.add_vertex(projection.clone());
+                            proof.add_edge(token.clone(), projection.clone()).unwrap();
                             Some(projection)
                         } else {
                             None
                         }
                     })
-                    .collect::<SSet<_>>()
+                    .collect::<Set<_>>()
             })
             .collect()
-    }
-
-    fn sparse_project(&self, tokens: &SSet<Self>) -> SSet<Self> {
-        log::trace!("[sparse-project] {self:?} with {tokens:?}");
-        self.project(tokens)
     }
 }

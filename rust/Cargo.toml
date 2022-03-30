@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 log = { version = "~0.4" }
+btree_dag = { version = "~0.1" }
 
 [dev-dependencies]
 rprompt = { version = "~1.0" }

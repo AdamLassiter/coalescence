@@ -32,6 +32,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "btree_dag"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd55d5b0033dcef3b3681ef7885d4fb40aa42314cd809463f0c6cc0cf5f44da0"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -41,6 +47,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "coalescence"
 version = "0.1.0"
 dependencies = [
+ "btree_dag",
  "env_logger",
  "log",
  "pretty_assertions",

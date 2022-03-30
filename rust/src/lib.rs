@@ -7,14 +7,15 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use btree_dag::BTreeDag;
+
 pub mod coalesceable;
 pub mod expression;
 pub mod parseable;
-pub mod proveable;
 
 pub type Set<T> = BTreeSet<T>;
-pub type SSet<T> = Set<Set<T>>;
 pub type Map<K, V> = BTreeMap<K, V>;
+pub type Dag<T> = BTreeDag<T>;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Node(usize);
@@ -47,7 +48,7 @@ pub struct Arena<'arena, T> {
     arena: &'arena Vec<T>,
     index: usize,
 }
-impl <T: std::fmt::Debug> std::fmt::Debug for Arena<'_, T> {
+impl<T: std::fmt::Debug> std::fmt::Debug for Arena<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.arena.get(self.index).unwrap().fmt(f)
     }

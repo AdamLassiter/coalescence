@@ -67,6 +67,7 @@ fn coalesce_third_axiom() -> Result<(), String> {
 }
 
 #[test]
+#[ignore]
 pub fn coalesce_fourth_axiom() -> Result<(), String> {
     log_init();
 
