@@ -2,7 +2,7 @@ use crate::Set;
 
 // TODO: This could be arena-allocated
 // i.e. store vec walk of tree and tree of vec indexes
-#[derive(Ord, Eq, PartialOrd, PartialEq, Clone)]
+#[derive(Ord, Eq, PartialOrd, PartialEq, Clone, Hash)]
 pub enum Expr {
     And(Set<Box<Expr>>),
     Or(Set<Box<Expr>>),
@@ -26,8 +26,7 @@ impl std::fmt::Debug for Expr {
                         Self::And(_) => " & ",
                         Self::Or(_) => " | ",
                         _ => panic!("Impossible match arm"),
-                    }
-                ),
+                    }),
             ),
             Self::Not(expr) => f.write_fmt(format_args!("~({expr:?})")),
             Self::Atom(name) => f.write_fmt(format_args!("{name}")),

@@ -48,6 +48,7 @@ name = "coalescence"
 version = "0.1.0"
 dependencies = [
  "btree_dag",
+ "dot",
  "env_logger",
  "log",
  "pretty_assertions",
@@ -69,6 +70,12 @@ name = "diff"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
+
+[[package]]
+name = "dot"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a74b6c4d4a1cff5f454164363c16b72fa12463ca6b31f4b5f2035a65fa3d5906"
 
 [[package]]
 name = "env_logger"

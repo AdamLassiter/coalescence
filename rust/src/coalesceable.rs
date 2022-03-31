@@ -149,7 +149,10 @@ impl Coalesceable for Expr {
                     Expr::Or(_) if !children.is_disjoint(&tokens) => {
                         log::debug!("{children:?} =|> {parent_token:?}");
                         proof.add_vertex(parent_token.clone());
-                        proof.add_edge(token.clone(), parent_token.clone()).unwrap();
+                        children.intersection(&tokens).for_each(|child| {
+                            proof.add_vertex(child.clone());
+                            proof.add_edge(child.clone(), parent_token.clone()).unwrap();
+                        });
                         Some(parent_token)
                     },
                     _ => None,
