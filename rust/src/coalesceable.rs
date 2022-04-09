@@ -18,6 +18,7 @@ pub trait Coalesceable: Sized + Ord + Clone + std::fmt::Debug {
     fn coalesce(&self) -> Option<(Set<Set<Self>>, Dag<Set<Self>>)> {
         log::trace!("[coalesce] {self:?}");
         let mut proof = Dag::<Set<Self>>::new();
+        proof.add_vertex(Set::new());
 
         let mut tokens = Self::spawn(self, &mut proof);
         if tokens.is_empty() {
@@ -72,6 +73,7 @@ impl Coalesceable for Expr {
                 if axiom.iter().all(|atom| atoms.contains(atom)) {
                     log::debug!("∅ =T> {axiom:?}");
                     proof.add_vertex(axiom.clone());
+                    proof.add_edge(Set::new(), axiom.clone()).unwrap();
                     Some(axiom)
                 } else {
                     None
@@ -141,7 +143,7 @@ impl Coalesceable for Expr {
                         log::debug!("{children:?} =&> {parent_token:?}");
                         proof.add_vertex(parent_token.clone());
                         children.iter().for_each(|child| {
-                            proof.add_vertex(child.clone());
+                            proof.add_vertex(parent_token.clone());
                             proof.add_edge(child.clone(), parent_token.clone()).unwrap();
                         });
                         Some(parent_token)
@@ -150,7 +152,7 @@ impl Coalesceable for Expr {
                         log::debug!("{children:?} =|> {parent_token:?}");
                         proof.add_vertex(parent_token.clone());
                         children.intersection(&tokens).for_each(|child| {
-                            proof.add_vertex(child.clone());
+                            proof.add_vertex(parent_token.clone());
                             proof.add_edge(child.clone(), parent_token.clone()).unwrap();
                         });
                         Some(parent_token)
